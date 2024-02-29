@@ -1,32 +1,32 @@
-FROM nvcr.io/nvidia/pytorch:23.05-py3
+FROM ubuntu:20.04
 MAINTAINER Ehsan Pajouheshgar<ehsan.pajouheshgar@epfl.ch>
 
-ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update &&  TZ="Europe/Zurich" apt-get install -y \
-    curl vim htop\
+RUN apt-get update &&  DEBIAN_FRONTEND="noninteractive" TZ="Europe/Zurich" apt-get install -y \
+    curl \
     ca-certificates \
-    cmake \
     sudo \
     git \
     bzip2 \
     libx11-6 \
+    cmake wget vim htop \
+    python3 python3-dev python3-pip python-is-python3 \
+    hdf5-tools h5utils \
     zip \
-    unzip ssh \
-    tmux \
-    ffmpeg \
+    unzip \
+    ssh \
  && rm -rf /var/lib/apt/lists/*
 
-
-
-RUN pip3 install jupyter jupyterlab pandas \
-                 matplotlib Pillow h5py \
-                 tqdm moviepy scipy pyyaml\
-                 opencv-contrib-python-headless
-
-RUN pip3 install -U torch \
-    torchvision \
-    torchaudio --index-url https://download.pytorch.org/whl/cu117
+RUN pip3 --no-cache-dir install \
+	numpy scipy scikit-image scikit-learn \
+	matplotlib seaborn \
+	pillow imageio h5py \
+	pandas \
+	opencv-contrib-python-headless \
+    jupyter \
+    jupyterlab \
+    tqdm \
+    ipywidgets
 
 RUN jupyter nbextension enable --py widgetsnbextension
 
