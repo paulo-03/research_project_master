@@ -1,3 +1,5 @@
 .DS_Store
 .idea/
 local_files/.DS_Store
+local_files/data
+local_files/__pycache__/

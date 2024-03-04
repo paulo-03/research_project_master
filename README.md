@@ -1,5 +1,7 @@
 # Learning Low-Dose CT image denoising from an abstract dataset
 
+Dataset can be downloaded [here](https://aapm.app.box.com/s/eaw4jddb53keg1bptavvvd1sf4x3pe9h/folder/144594475090).
+
 Contact: [Raphaël Achddou](mailto:raphael.achddou@epfl.ch), [Paulo Ribeiro](mailto:paulo.ribeirodecarvalho@epfl.ch)
 
 ## Introduction
