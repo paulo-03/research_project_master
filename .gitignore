@@ -3,3 +3,5 @@
 local_files/.DS_Store
 local_files/data
 local_files/__pycache__/
+runai_helper
+jobs
