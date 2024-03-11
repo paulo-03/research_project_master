@@ -1,89 +1,65 @@
-"""
-Helpers functions of basic functions that are shared across scripts or notebooks.
-Authors: Raphaël Achddou (PhD) & Paulo Ribeiro (Master)
-"""
-import os
-import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
-import pydicom
-from PIL import Image
+"""Explanation"""
+
+from img_class import *
 
 
-class ImageCT:
-    def __init__(self, img, cat, img_type, dose, patient):
-        self.img: Image.PIL = img
-        self.cat, self.img_type, self.dose, self.patient = cat, img_type, dose, patient
+def load_data(path) -> list[ImageCT]:
+    """Helps to load all DICOM images into a list of PIL images"""
+    ct_imgs = []
+    all_imgs_path = _get_paths(path)
 
-
-class GroupImageCT:
-    def __init__(self, path):
-        self.full_path: str = path
-        self.cat, self.img_type, self.dose, self.patient = self._defining_folder_param()
-        self.imgs: list = self._load_data()
-        self.len: int = len(self.imgs)
-
-    def _load_data(self) -> list[ImageCT]:
-        """Helps to load all DICOM images into a list of PIL images"""
-        # List all projection image name in the given path
-        files_name = [img_name for img_name in sorted(os.listdir(self.full_path)) if not img_name.startswith('.')]
-        # Load images
-        dicom_imgs = [pydicom.dcmread('/'.join([self.full_path, img_name])) for img_name in files_name]
+    for img_path in all_imgs_path:
+        # Store information of the images that we are loading by looking at its path
+        cat, img_type, dose, patient = _defining_img_param(img_path)
+        # Load DICOM projection image name in the given path
+        dicom_img = pydicom.dcmread(img_path)
         # Convert the format to numpy array type
-        pixel_imgs = [dicom_img.pixel_array for dicom_img in dicom_imgs]
+        pixel_img = dicom_img.pixel_array
         # Rescale the pixels values to the range 0-255
-        scaled_pixel_imgs = [pixel_img / pixel_img.max() * 255.0 for pixel_img in pixel_imgs]
+        scaled_pixel_img = pixel_img / pixel_img.max() * 255.0
         # Convert image into ImageCT personal class for simplicity of processing and ease of structure
-        pil_imgs = [ImageCT(Image.fromarray(scaled_pixel_img.astype(np.uint8)),
-                            self.cat, self.img_type, self.dose, self.patient) for scaled_pixel_img in scaled_pixel_imgs]
+        pil_img = Image.fromarray(scaled_pixel_img.astype(np.uint8))
+        # Create an ImageCT object to store img and its information and append to the other images
+        ct_imgs.append(ImageCT(pil_img, img_path, cat, img_type, dose, patient))
 
-        return pil_imgs
+    return ct_imgs
 
-    def _defining_folder_param(self):
-        """Allows to easily retrieve the type of images we are seeing"""
-        params = self.full_path.split('/')
-        cat = params[1]  # train or test
-        img_type = params[2]  # 1mm B30, 1mm D45, 3mm B30, 3mm D45
-        dose = 'quarter' if params[3].startswith('quarter') or params[3].startswith('QD') else 'full'  # full or quarter
-        patient = params[4]
 
-        return cat, img_type, dose, patient
+def _get_paths(path) -> list[str]:
+    """Get all path to DICOM images"""
+    img_cats = ['train', 'test']
+    dicom_img_paths = []
 
-    def view(self, idxs: list[int], random: bool = False):
-        """Allow to quickly and easily have an overview of the CT images of this specific folder"""
-        rows_number = len(idxs) // 4    # 4 images showed by row
-        fig, axs = plt.subplots(rows_number, 4, figsize=(14, 4 * rows_number))
-        fig.suptitle(f'CT Images from {self.full_path}')
-        for idx, image in enumerate(idxs):
-            row = idx // 4
-            col = idx % 4
-            axs[row][col].imshow(self.imgs[image], cmap='grey')
-            axs[row][col].set_title(f'CT Image number: {image}')
-            axs[row][col].grid(None)
-        plt.show()
+    for img_cat in img_cats:
+        start_path = '/'.join([path, img_cat])  # data/img_cat
+        # filter possible unwanted folder/files
+        img_types = [img_type for img_type in os.listdir(start_path) if img_type != '.DS_Store']
 
-    def color_histogram(self, plot: bool = False) -> [list, list]:
-        """Compute the observed color histogram of our CT images sample"""
-        # Images are set to uint8 format, then pixels values are in range [0,255]
-        pixel_values = np.arange(0, 256)
-        # Initialize histogram
-        hist = np.zeros(256)
-        # Sum all the histograms to compute the mean histogram of our sample
-        for img in self.imgs:
-            hist += np.array(img.histogram())
-        # Finally display a nice histogram, if set to True, to visualize result
-        if plot:
-            plt.figure(figsize=(20, 5))
-            # Compute the color distribution observed
-            sns.lineplot(hist / hist.sum())
-            # Add labels and title
-            plt.xlabel('Pixel Values')
-            plt.ylabel('Frequency')
-            plt.title('Color Distribution of CT images')
-            plt.xticks(range(0, 251, 40))
-            plt.ylim(0, 0.15)
-            plt.xlim(0, 256)
-            # Show the plot
-            plt.show()
+        for img_type in img_types:
+            type_path = '/'.join([start_path, img_type])  # data/img_cat/img_type
+            img_doses = [img_dose for img_dose in os.listdir(type_path) if img_dose != '.DS_Store']
 
-        return pixel_values, hist
+            for img_dose in img_doses:
+                dose_path = '/'.join([type_path, img_dose])  # data/img_cat/img_type/img_dose
+                img_patients = [img_patient for img_patient in os.listdir(dose_path) if img_patient != '.DS_Store']
+
+                for img_patient in img_patients:
+                    patient_path = '/'.join([dose_path, img_patient])  # data/img_cat/img_type/img_dose/img_patient
+                    imgs_full_path = [item for item in sorted(os.listdir(patient_path)) if item.endswith('.IMA')]
+
+                    for img_full_path in imgs_full_path:
+                        item_path = '/'.join([patient_path, img_full_path])
+                        dicom_img_paths.append(item_path)
+
+    return dicom_img_paths
+
+
+def _defining_img_param(path):
+    """Allows to easily retrieve the type of images we are seeing"""
+    params = path.split('/')
+    cat = params[1]  # train or test
+    img_type = params[2]  # 1mm B30, 1mm D45, 3mm B30, 3mm D45
+    dose = 'quarter' if params[3].startswith('quarter') or params[3].startswith('QD') else 'full'  # full or quarter
+    patient = params[4]
+
+    return cat, img_type, dose, patient

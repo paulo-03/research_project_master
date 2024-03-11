@@ -1,7 +1,8 @@
 .DS_Store
 .idea/
 local_files/.DS_Store
-local_files/data
+local_files/data/train
+local_files/data/test
 local_files/__pycache__/
 runai_helper
 jobs
