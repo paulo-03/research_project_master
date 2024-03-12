@@ -1,10 +1,15 @@
 """Explanation"""
 
+import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pydicom
 from img_class import *
 
 
 def load_data(path) -> list[ImageCT]:
-    """Helps to load all DICOM images into a list of PIL images"""
+    """Helps to load all DICOM images into a list of PIL images."""
     ct_imgs = []
     all_imgs_path = _get_paths(path)
 
@@ -26,7 +31,7 @@ def load_data(path) -> list[ImageCT]:
 
 
 def _get_paths(path) -> list[str]:
-    """Get all path to DICOM images"""
+    """Get all path to DICOM images."""
     img_cats = ['train', 'test']
     dicom_img_paths = []
 
@@ -55,7 +60,7 @@ def _get_paths(path) -> list[str]:
 
 
 def _defining_img_param(path):
-    """Allows to easily retrieve the type of images we are seeing"""
+    """Allows to easily retrieve the type of images we are seeing."""
     params = path.split('/')
     cat = params[1]  # train or test
     img_type = params[2]  # 1mm B30, 1mm D45, 3mm B30, 3mm D45
@@ -63,3 +68,51 @@ def _defining_img_param(path):
     patient = params[4]
 
     return cat, img_type, dose, patient
+
+
+def fourier_transform_analysis(ft2: np.ndarray, num_rings: int = 10, plot: bool = False) -> float:
+    """Process the fourier transform to retrieve our alpha value."""
+    # Create an array with the distances from the center of each pixel
+    distances = radius_distance_from_center(ft2)
+    max_distances = distances.max() + 1  # +1 to be sure the most far away pixels will be selected
+    # Compute rings border [1. 2. 3. 4.] and then the rings itself [[1., 2.], [2., 3.], [3., 4.]]
+    _, rings_border = np.histogram([0, max_distances], bins=num_rings)
+    rings = [[rings_border[idx], rings_border[idx + 1]] for idx in range(len(rings_border) - 1)]
+    # Initialize list that will store mean fourier values and radius position
+    avg_radius_position = []
+    avg_values = []
+    for [min_radius, max_radius] in rings:
+        # Prepare the mask and apply it to compute only within the pixel in the current radius
+        mask = (distances >= min_radius) & (distances < max_radius)
+        # Store the position and values
+        avg_radius_position.append((min_radius + max_radius) * 0.5)
+        avg_values.append(float(np.mean(ft2, where=mask)))
+
+    # Perform linear regression
+    log_avg_radius_position, log_avg_values = np.log(avg_radius_position), np.log(avg_values)
+    slope, intercept = np.polyfit(log_avg_radius_position, log_avg_values, 1)
+
+    if plot:
+        plt.figure(figsize=(7, 3))
+        plt.scatter(log_avg_radius_position, log_avg_values, label='empirical average value')
+        plt.plot(log_avg_radius_position, [(lambda x: slope * x + intercept)(rad) for rad in log_avg_radius_position],
+                 label=fr'linear regression: $\alpha$={slope:.2f}')
+        plt.title('Average Fourier Transformation')
+        plt.ylabel('Fourier Transform (Log-scale)')
+        plt.xlabel('Radius Distance from the Center (Log-scale)')
+        plt.legend()
+        plt.show()
+
+    return slope
+
+
+def radius_distance_from_center(ft2: np.ndarray) -> np.ndarray:
+    """Return an array given the distance of each pixel from its center."""
+    # Calculate the center of the array
+    center_x, center_y = ft2.shape[1] // 2, ft2.shape[0] // 2
+    # Generate a grid of coordinates for all points in the array
+    y, x = np.ogrid[:ft2.shape[0], :ft2.shape[1]]
+    # Calculate the distance of each point from the center
+    distances = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
+
+    return distances

@@ -4,5 +4,6 @@ local_files/.DS_Store
 local_files/data/train
 local_files/data/test
 local_files/__pycache__/
-runai_helper
-jobs
+local_files/data/Mayo_Grand _Challenge_READ_ME.pdf
+runai
+runai/jobs
