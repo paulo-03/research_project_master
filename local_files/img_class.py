@@ -11,11 +11,13 @@ from scipy.fft import fft2, fftshift
 from PIL import Image
 from skimage.morphology import opening, closing
 from skimage.morphology.footprints import ellipse, disk, square
+from skimage.metrics import structural_similarity
 
 
 class ImageCT:
-    def __init__(self, img, path, cat, img_type, dose, patient):
+    def __init__(self, img, arr, path, cat, img_type, dose, patient):
         self.pil: Image.PIL = img
+        self.arr: np.ndarray = arr
         self.path = path
         self.cat, self.type, self.dose, self.patient = cat, img_type, dose, patient
 
@@ -146,22 +148,49 @@ class GroupImageCT:
 
         return global_fourier
 
-    def opening(self, footprint: skimage.morphology.footprints):
-        """Compute morphological opening of all the images in the GroupImageCT class"""
+    def opening(self, footprint: skimage.morphology.footprints, keep_class_structure=True):
+        """Compute morphological opening of all the images in the GroupImageCT class."""
         opening_img = []
         for img in self.imgs:
             open_img = opening(img.pil, footprint)
-            encoded_img = ImageCT(open_img, img.path, img.cat, img.type, img.dose, img.patient)
-            opening_img.append(encoded_img)
 
-        return GroupImageCT(opening_img)
+            if keep_class_structure:
+                open_img = Image.fromarray(open_img.astype(np.uint8))  # convert to pil for data type consistency
+                encoded_img = ImageCT(open_img, img.path, img.cat, img.type, img.dose, img.patient)
+                opening_img.append(encoded_img)
 
-    def closing(self, footprint: skimage.morphology.footprints):
-        """Compute morphological closing of all the images in the GroupImageCT class"""
+            else:
+                opening_img.append(open_img)
+
+        return GroupImageCT(opening_img) if keep_class_structure else opening_img
+
+    def closing(self, footprint: skimage.morphology.footprints, keep_class_structure=True):
+        """Compute morphological closing of all the images in the GroupImageCT class."""
         closing_img = []
         for img in self.imgs:
-            open_img = closing(img.pil, footprint)
-            encoded_img = ImageCT(open_img, img.path, img.cat, img.type, img.dose, img.patient)
-            closing_img.append(encoded_img)
+            close_img = closing(img.pil, footprint)
 
-        return GroupImageCT(closing_img)
+            if keep_class_structure:
+                close_img = Image.fromarray(close_img.astype(np.uint8))  # convert to pil for data type consistency
+                encoded_img = ImageCT(close_img, img.path, img.cat, img.type, img.dose, img.patient)
+                closing_img.append(encoded_img)
+
+            else:
+                closing_img.append(close_img)
+
+        return GroupImageCT(closing_img) if keep_class_structure else closing_img
+
+    def morphological_analysis(self, morphologies=None):
+        """Test all th given morphologies and return the object that fits the best the image sample."""
+        # Retrieve all original images into array data format
+        original = [img.arr for img in self.imgs]
+        # Prepare all selected morphologies and add them to the object list used to open or close the images
+        results = {}
+        for name, morpho in morphologies:
+            closing = self.closing(morpho, keep_class_structure=False)
+            opening = self.opening(morpho, keep_class_structure=False)
+            ssim_closing = structural_similarity(original, closing, data_range=256.0)
+            ssim_opening = structural_similarity(original, opening, data_range=256.0)
+            results[name] = [ssim_opening, ssim_closing]
+
+        return results

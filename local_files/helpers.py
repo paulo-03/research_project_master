@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pydicom
 from img_class import *
+from tqdm.notebook import tqdm_notebook
 
 
 def load_data(path) -> list[ImageCT]:
@@ -13,7 +14,7 @@ def load_data(path) -> list[ImageCT]:
     ct_imgs = []
     all_imgs_path = _get_paths(path)
 
-    for img_path in all_imgs_path:
+    for img_path in tqdm_notebook(all_imgs_path):
         # Store information of the images that we are loading by looking at its path
         cat, img_type, dose, patient = _defining_img_param(img_path)
         # Load DICOM projection image name in the given path
@@ -25,7 +26,7 @@ def load_data(path) -> list[ImageCT]:
         # Convert image into ImageCT personal class for simplicity of processing and ease of structure
         pil_img = Image.fromarray(scaled_pixel_img.astype(np.uint8))
         # Create an ImageCT object to store img and its information and append to the other images
-        ct_imgs.append(ImageCT(pil_img, img_path, cat, img_type, dose, patient))
+        ct_imgs.append(ImageCT(pil_img, scaled_pixel_img, img_path, cat, img_type, dose, patient))
 
     return ct_imgs
 

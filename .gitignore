@@ -3,7 +3,8 @@
 local_files/.DS_Store
 local_files/data/train
 local_files/data/test
-local_files/__pycache__/
 local_files/data/Mayo_Grand _Challenge_READ_ME.pdf
+local_files/dead_leaves_generation/__pycache__/
+local_files/__pycache__/
 runai
 runai/jobs

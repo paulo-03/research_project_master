@@ -201,3 +201,4 @@ if __name__ == "__main__":
     pool = Pool(args.nb_p)
     # pool.map(beta_test,[ (1,2) for _ in range(10)])
     pool.map(generation, [args for i in range(args.nb_p)])
+
