@@ -26,7 +26,7 @@ def load_data(path) -> list[ImageCT]:
         # Convert image into ImageCT personal class for simplicity of processing and ease of structure
         pil_img = Image.fromarray(scaled_pixel_img.astype(np.uint8))
         # Create an ImageCT object to store img and its information and append to the other images
-        ct_imgs.append(ImageCT(pil_img, scaled_pixel_img, img_path, cat, img_type, dose, patient))
+        ct_imgs.append(ImageCT(pil_img, img_path, cat, img_type, dose, patient))
 
     return ct_imgs
 

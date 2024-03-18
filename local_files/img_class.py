@@ -4,20 +4,20 @@ Authors: Raphaël Achddou (PhD) & Paulo Ribeiro (Master)
 """
 
 import numpy as np
+import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import skimage
+from tqdm.notebook import tqdm_notebook
 from scipy.fft import fft2, fftshift
 from PIL import Image
 from skimage.morphology import opening, closing
-from skimage.morphology.footprints import ellipse, disk, square
 from skimage.metrics import structural_similarity
 
 
 class ImageCT:
-    def __init__(self, img, arr, path, cat, img_type, dose, patient):
-        self.pil: Image.PIL = img
-        self.arr: np.ndarray = arr
+    def __init__(self, img, path, cat, img_type, dose, patient):
+        self.pil: Image = img
         self.path = path
         self.cat, self.type, self.dose, self.patient = cat, img_type, dose, patient
 
@@ -180,17 +180,24 @@ class GroupImageCT:
 
         return GroupImageCT(closing_img) if keep_class_structure else closing_img
 
-    def morphological_analysis(self, morphologies=None):
-        """Test all th given morphologies and return the object that fits the best the image sample."""
+    def morphological_analysis(self, morphologies: dict = None):
+        """Test all th given morphologies and return the object ssim scores within the image sample."""
         # Retrieve all original images into array data format
-        original = [img.arr for img in self.imgs]
+        originals = [np.array(img.pil) for img in self.imgs]
         # Prepare all selected morphologies and add them to the object list used to open or close the images
         results = {}
-        for name, morpho in morphologies:
-            closing = self.closing(morpho, keep_class_structure=False)
-            opening = self.opening(morpho, keep_class_structure=False)
-            ssim_closing = structural_similarity(original, closing, data_range=256.0)
-            ssim_opening = structural_similarity(original, opening, data_range=256.0)
-            results[name] = [ssim_opening, ssim_closing]
+        for name, morpho in tqdm_notebook(morphologies.items()):
+            closing_imgs = self.closing(morpho, keep_class_structure=False)
+            opening_imgs = self.opening(morpho, keep_class_structure=False)
+            ssim_closing = 0
+            ssim_opening = 0
 
-        return results
+            for closing_img, opening_img, original in tqdm_notebook(zip(closing_imgs, opening_imgs, originals),
+                                                                    total=self.len):
+                # Compute the similarity score (1 -> similar and 0 -> no similarity)
+                ssim_closing += structural_similarity(original, closing_img, data_range=255)
+                ssim_opening += structural_similarity(original, opening_img, data_range=255)
+
+            results[name] = [ssim_opening / self.len, ssim_closing / self.len]
+
+        return pd.DataFrame.from_dict(results, orient='index', columns=['ssim_opening_avg', 'ssim_closing_avg'])
