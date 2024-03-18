@@ -23,8 +23,7 @@ class RealImageCT(ImageCT):
 
 
 class SynthImageCT(ImageCT):
-    def __init__(self, leave_img, r_min, r_max, alpha):
+    def __init__(self, leave_img, r_mean, disk_number):
         super().__init__(leave_img)
-        self.r_min: int = r_min
-        self.r_max: int = r_max
-        self.alpha: float = alpha
+        self.r_mean = r_mean
+        self.disk_number = disk_number

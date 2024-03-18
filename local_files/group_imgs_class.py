@@ -85,6 +85,7 @@ class GroupImageCT:
             axs[1].set_title('Directional Gradient along Y-axis')
             axs[1].set_xlabel('Gradient Intensity')
             axs[1].set_ylabel('Frequency (log-scale)')
+            axs[1].set_ylim(10 ** (-9), 1)
 
         return histo_x, histo_y, bins
 
@@ -141,7 +142,7 @@ class GroupImageCT:
     def _fourier_transformation(self, plot: bool = False) -> np.ndarray:
         """Compute the fourier transformation of our observed CT Images."""
         # Initialize the array that will contain all fourier transform values
-        global_fourier = np.zeros((512, 512))
+        global_fourier = np.zeros(self.imgs[0].pil.size)
         for img in self.imgs:
             # Compute the 2-dimensional Fourier transform
             f_transform = fft2(img.pil)
@@ -253,5 +254,8 @@ class GroupReal(GroupImageCT):
 
 
 class GroupSynth(GroupImageCT):
-    def __init__(self, data: list[SynthImageCT]):
+    def __init__(self, data: list[SynthImageCT], r_min: int, r_max: int, alpha: float):
         super().__init__(data)
+        self.r_min = r_min
+        self.r_max = r_max
+        self.alpha = alpha

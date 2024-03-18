@@ -1,6 +1,3 @@
-import os
-import argparse
-from multiprocessing import Pool
 import numpy as np
 from dead_leaves_generation.utils import *
 from dead_leaves_generation.disk_dict import *
