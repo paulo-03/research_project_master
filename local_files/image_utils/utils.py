@@ -284,7 +284,7 @@ class GroupSynth(GroupImageCT):
         self.alpha = alpha
 
 
-def noise_stat_analysis(full: GroupReal, quarter: GroupReal) -> dict:
+def noise_stat_analysis(full: GroupReal, quarter: GroupReal, plot=False) -> (dict, dict, float):
     """This function analyses noise between a full and quarter dose in CT Images. It uses a pixel intensity
     approach, meaning it looks at all the pixels with same frequency in full dose images and compute the mean and
     standard deviation of the pixel frequency in the quarter dose images.
@@ -300,12 +300,55 @@ def noise_stat_analysis(full: GroupReal, quarter: GroupReal) -> dict:
         # Image pair is valid, then we start the analysis
         var_dict = _noise_analysis_current_img(full_img=f_img, quarter_img=q_img, var_dict=var_dict)
 
-    # Finally compute the mean variance for all pixels intensities
+    # Finally compute the mean variance for all pixels intensities and the variances of variances
     var_dict_mean = {}
+    var_dict_var = {}
     for intensity in range(256):
-        var_dict_mean[intensity] = sum(var_dict[intensity]) / len(var_dict[intensity])
+        n = len(var_dict[intensity])
+        mean = sum(var_dict[intensity]) / n
+        var_dict_mean[intensity] = mean
 
-    return var_dict_mean
+        squared_diff = [(x - mean) ** 2 for x in var_dict[intensity]]
+        variance = sum(squared_diff) / n
+        var_dict_var[intensity] = variance ** 0.5
+
+    # Perform a linear regression on the mean variance of pixels intensities
+    intensities = list(var_dict_mean.keys())
+    mean_values = list(var_dict_mean.values())
+    slope, intercept = np.polyfit(intensities, mean_values, 1)
+
+    # If plot is set to True, show a nice plot with mean and variance of each pixel intensity
+    if plot:
+        var_values = list(var_dict_var.values())
+
+        # Calculate upper and lower bounds using variance
+        upper_bounds = [mean + var for mean, var in zip(mean_values, var_values)]
+        lower_bounds = [mean - var for mean, var in zip(mean_values, var_values)]
+
+        # Plot mean values
+        plt.figure(figsize=(15, 6))
+        plt.plot(intensities, mean_values, label='mean variance')
+        plt.plot(intensities,
+                 [(lambda x: slope * x + intercept)(intensity) for intensity in intensities],
+                 linestyle='--',
+                 color='orange',
+                 label=fr'linear regression: $\alpha$={slope:.2f}')
+
+        # Plot upper and lower bounds
+        plt.plot(intensities, upper_bounds, linestyle='--', color='red', label='std of variance (mean + std)')
+        plt.plot(intensities, lower_bounds, linestyle='--', color='green', label='std of variance (mean - std)')
+
+        # Add labels and legend
+        plt.xlabel('Pixel Intensities')
+        plt.ylabel('Variance')
+        plt.title('Variance of Pixel Intensities Across Full and Quarter Dose Images')
+        plt.legend()
+
+        # Show plot
+        plt.grid(True)
+        plt.show()
+
+    return var_dict_mean, var_dict_var, slope
 
 
 def _noise_analysis_current_img(full_img: RealImageCT, quarter_img: RealImageCT, var_dict: dict) -> dict:
@@ -326,7 +369,7 @@ def _noise_analysis_current_img(full_img: RealImageCT, quarter_img: RealImageCT,
     return var_dict
 
 
-# TODO: Still need to think about the occlusion in CT Image. Currently setting no mask.
+# TODO: Still need to think about the occlusion in CT Image. Currently setting no mask (maybe no big deal).
 def _create_mask(img: RealImageCT) -> np.ndarray:
     """Compute the mask of the current image. Indeed, real CT Images are not square image, then black pixels are added
     circularly around the image. We don't want to analyze these pixels that do not carry useful information.
