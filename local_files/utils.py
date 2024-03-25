@@ -2,7 +2,7 @@
 
 import os
 import pydicom
-from group_imgs_class import *
+from image_utils.utils import *
 from tqdm.notebook import tqdm_notebook
 
 

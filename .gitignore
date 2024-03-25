@@ -8,3 +8,4 @@ local_files/dead_leaves_generation/__pycache__/
 local_files/__pycache__/
 runai
 runai/jobs
+local_files/image_utils/__pycache__/

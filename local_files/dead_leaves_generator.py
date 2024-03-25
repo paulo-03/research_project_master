@@ -1,12 +1,11 @@
 """
 This code allows you to compute your own dead leaves (dl) images.
 """
-import matplotlib.pyplot as plt
-import numpy
+
 import numpy as np
 from tqdm.notebook import tqdm_notebook
 from PIL import Image, ImageDraw
-from group_imgs_class import GroupSynth, SynthImageCT
+from image_utils.utils import GroupSynth, SynthImageCT
 
 
 def dead_leaves_generator(number: int, dl_args):
