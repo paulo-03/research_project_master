@@ -6,7 +6,7 @@ from image_utils.utils import *
 from tqdm.notebook import tqdm_notebook
 
 
-def load_data(path) -> list[RealImageCT]:
+def load_data(path) -> GroupReal:
     """Helps to load all DICOM images into a list of PIL images."""
     ct_imgs = []
     all_imgs_path = _get_paths(path)
@@ -25,7 +25,7 @@ def load_data(path) -> list[RealImageCT]:
         # Create an ImageCT object to store img and its information and append to the other images
         ct_imgs.append(RealImageCT(pil_img, img_path, cat, img_type, dose, patient))
 
-    return ct_imgs
+    return GroupReal(ct_imgs)
 
 
 def _get_paths(path) -> list[str]:

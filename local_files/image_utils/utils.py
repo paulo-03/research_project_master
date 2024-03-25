@@ -275,6 +275,136 @@ class GroupReal(GroupImageCT):
 
         return pd.DataFrame.from_dict(results, orient='index', columns=['ssim_opening_avg', 'ssim_closing_avg'])
 
+    def noise_stat_analysis(self, plot=False) -> (dict, dict, dict, float):
+        """This function analyses noise between a full and quarter dose in CT Images. It uses a pixel intensity
+        approach, meaning it looks at all the pixels with same frequency in full dose images and compute the mean and
+        standard deviation of the pixel frequency in the quarter dose images.
+        """
+        # First split images in full (w/o noise) and quarter (w/ noise) dose
+        full = GroupReal(self.imgs).filter(dose=['full'])
+        quarter = GroupReal(self.imgs).filter(dose=['quarter'])
+
+        # Quick check to be sure both full and quarter are same length, meaning each full has its quarter image
+        if not full.len == quarter.len:
+            raise ValueError(f"Full ({full.len} items) and quarter ({quarter.len} items) are not same length.")
+
+        # Initialize dict that will contain all pixels squared difference and noised values
+        squared_diff_dict = {}
+        noised_values_dict = {}
+        for intensity in range(256):
+            squared_diff_dict[intensity] = []
+            noised_values_dict[intensity] = []
+
+        for f_img, q_img in tqdm_notebook(zip(full.imgs, quarter.imgs), total=full.len,
+                                          desc="Performing noise analysis in all image pair"):
+            # Start by validating the image pair
+            self._valid_img_pair(f_img, q_img)
+            # Image pair is valid, then we start the analysis
+            squared_diff_dict, noised_values = self._noise_analysis_current_img(full_img=f_img, quarter_img=q_img,
+                                                                                squared_diff_dict=squared_diff_dict,
+                                                                                noised_values_dict=noised_values_dict)
+
+        # Compute the mean variance, std of variances and density distribution for all pixels intensities
+        var_dict_mean = {}
+        var_dict_std = {}
+        noise_density_distribution = {}
+        for intensity in tqdm_notebook(range(256),
+                                       desc="Computing mean variance, std of variances and density distribution for "
+                                            "all pixels intensities"):
+            # Mean variance
+            n = len(squared_diff_dict[intensity])
+            mean = sum(squared_diff_dict[intensity]) / n
+            var_dict_mean[intensity] = mean
+            # Std variance
+            squared_diff = [(x - mean) ** 2 for x in squared_diff_dict[intensity]]
+            variance = sum(squared_diff) / n
+            var_dict_std[intensity] = variance ** 0.5
+            # Density distribution
+            density, intensities = np.histogram(noised_values_dict[intensity], bins=np.arange(0, 255 + 2), density=True)
+            noise_density_distribution[intensity] = [density, intensities[:-1]]
+
+        # Perform a linear regression on the mean variance of pixels intensities
+        intensities = list(var_dict_mean.keys())
+        mean_values = list(var_dict_mean.values())
+        slope, intercept = np.polyfit(intensities, mean_values, 1)
+
+        # If plot is set to True, show a nice plot with mean and variance of each pixel intensity
+        if plot:
+            std_values = list(var_dict_std.values())
+            self._noise_plot(intensities=intensities, mean_values=mean_values, std_values=std_values,
+                             slope=slope, intercept=intercept)
+
+        return var_dict_mean, var_dict_std, noise_density_distribution, slope
+
+    def _noise_analysis_current_img(self, full_img: RealImageCT, quarter_img: RealImageCT,
+                                    squared_diff_dict: dict, noised_values_dict: dict) -> (dict, dict):
+        """Compute variance of pixel value respectively for all pixel intensity"""
+        # Compute mask to know which pixel to drop during analysis
+        mask = self._create_mask(img=full_img)
+        # Start the analysis
+        f_img = full_img.pil
+        q_img = quarter_img.pil
+        for x in range(full_img.width):
+            for y in range(full_img.height):
+                if mask[x][y]:
+                    f_intensity = f_img.getpixel((x, y))
+                    q_intensity = q_img.getpixel((x, y))
+                    squared_diff = (f_intensity - q_intensity) ** 2
+                    # Store the values
+                    squared_diff_dict[f_intensity].append(squared_diff)
+                    noised_values_dict[f_intensity].append(q_intensity)
+
+        return squared_diff_dict, noised_values_dict
+
+    @staticmethod
+    # TODO: Still need to think about the occlusion in CT Image. Currently setting no mask (maybe no big deal).
+    def _create_mask(img: RealImageCT) -> np.ndarray:
+        """Compute the mask of the current image. Indeed, real CT Images are not square image, then black pixels are added
+        circularly around the image. We don't want to analyze these pixels that do not carry useful information.
+        """
+        return np.ones(shape=(img.height, img.width))
+
+    @staticmethod
+    def _valid_img_pair(full_img: RealImageCT, quarter_img: RealImageCT):
+        """Make sure that full and quarter image are their respective equivalent"""
+        f_patient, q_patient = full_img.patient, quarter_img.patient
+        f_type, q_type = full_img.type, quarter_img.type
+        f_cat, q_cat = full_img.cat, quarter_img.cat
+        if f_patient != q_patient or f_type != q_type or f_cat != q_cat:
+            raise ValueError('Images that are trying to be processed for noise analysis are not validate pair.\n'
+                             f'full is patient "{f_patient}", cat "{f_cat}" and type "{f_type}"\n'
+                             f'quarter is patient "{q_patient}", cat "{q_cat}" and type "{q_type}"')
+
+    @staticmethod
+    def _noise_plot(intensities, mean_values, std_values, slope, intercept):
+        """Plot the noise analysis"""
+        # Calculate upper and lower bounds using variance
+        upper_bounds = [mean + var for mean, var in zip(mean_values, std_values)]
+        lower_bounds = [mean - var for mean, var in zip(mean_values, std_values)]
+
+        # Plot mean values
+        plt.figure(figsize=(15, 6))
+        plt.plot(intensities, mean_values, label='mean variance')
+        plt.plot(intensities,
+                 [(lambda x: slope * x + intercept)(intensity) for intensity in intensities],
+                 linestyle='--',
+                 color='orange',
+                 label=fr'linear regression: $\alpha$={slope:.2f}')
+
+        # Plot upper and lower bounds
+        plt.plot(intensities, upper_bounds, linestyle='--', color='red', label='std of variance (mean + std)')
+        plt.plot(intensities, lower_bounds, linestyle='--', color='green', label='std of variance (mean - std)')
+
+        # Add labels and legend
+        plt.xlabel('Pixel Intensities')
+        plt.ylabel('Variance')
+        plt.title('Variance of Pixel Intensities Across Full and Quarter Dose Images')
+        plt.legend()
+
+        # Show plot
+        plt.grid(True)
+        plt.show()
+
 
 class GroupSynth(GroupImageCT):
     def __init__(self, data: list[SynthImageCT], r_min: int, r_max: int, alpha: float):
@@ -283,126 +413,27 @@ class GroupSynth(GroupImageCT):
         self.r_max = r_max
         self.alpha = alpha
 
+    def create_noised_dead_leaves(self, noise_density_distribution: dict):
+        """From noise analysis of real CT Images, we add noise to our synthetics images."""
+        # Initiate list that will store every noised image
+        noised_dl_image = []
+        for dl_img in tqdm_notebook(self.imgs, desc="Adding noise to dead leaves images"):
+            # Copy clean image to add noise in it
+            dl_img_noise = dl_img.pil.copy()
+            # Load to have quick and efficient access to pixels
+            pixels = dl_img_noise.load()
+            # Go through all pixels and add noise in function of its clean intensity
+            for x in range(dl_img.width):
+                for y in range(dl_img.height):
+                    # Access the pixel intensity
+                    pixel_intensity = pixels[x, y]
+                    # Retrieve the right noised intensities from the dict
+                    density, intensities = noise_density_distribution[pixel_intensity]
+                    # Randomly pick one intensity in function of its density distribution
+                    noised_pixel_intensity = np.random.choice(a=intensities, p=density)
+                    # Modify the noised image being build
+                    pixels[x, y] = noised_pixel_intensity.item()
 
-def noise_stat_analysis(full: GroupReal, quarter: GroupReal, plot=False) -> (dict, dict, dict, float):
-    """This function analyses noise between a full and quarter dose in CT Images. It uses a pixel intensity
-    approach, meaning it looks at all the pixels with same frequency in full dose images and compute the mean and
-    standard deviation of the pixel frequency in the quarter dose images.
-    """
-    # Initialize dict that will contain all pixels squared difference and noised values
-    squared_diff_dict = {}
-    noised_values_dict = {}
-    for intensity in range(256):
-        squared_diff_dict[intensity] = []
-        noised_values_dict[intensity] = []
+            noised_dl_image.append(SynthImageCT(dl_img_noise, disk_number=dl_img.disk_number, r_mean=dl_img.r_mean))
 
-    for f_img, q_img in tqdm_notebook(zip(full.imgs, quarter.imgs), total=full.len,
-                                      desc="Performing noise analysis in all image pair"):
-        # Start by validating the image pair
-        _valid_img_pair(f_img, q_img)
-        # Image pair is valid, then we start the analysis
-        squared_diff_dict, noised_values = _noise_analysis_current_img(full_img=f_img, quarter_img=q_img,
-                                                                       squared_diff_dict=squared_diff_dict,
-                                                                       noised_values_dict=noised_values_dict)
-
-    # Compute the mean variance, std of variances and density distribution for all pixels intensities
-    var_dict_mean = {}
-    var_dict_std = {}
-    noise_density_distribution = {}
-    for intensity in tqdm_notebook(range(256),
-                                   desc="Computing mean variance, std of variances and density distribution for all "
-                                        "pixels intensities"):
-        # Mean variance
-        n = len(squared_diff_dict[intensity])
-        mean = sum(squared_diff_dict[intensity]) / n
-        var_dict_mean[intensity] = mean
-        # Std variance
-        squared_diff = [(x - mean) ** 2 for x in squared_diff_dict[intensity]]
-        variance = sum(squared_diff) / n
-        var_dict_std[intensity] = variance ** 0.5
-        # Density distribution
-        density, intensities = np.histogram(noised_values_dict[intensity], bins=np.arange(0, 255 + 2), density=True)
-        noise_density_distribution[intensity] = [density, intensities[:-1]]
-
-    # Perform a linear regression on the mean variance of pixels intensities
-    intensities = list(var_dict_mean.keys())
-    mean_values = list(var_dict_mean.values())
-    slope, intercept = np.polyfit(intensities, mean_values, 1)
-
-    # If plot is set to True, show a nice plot with mean and variance of each pixel intensity
-    if plot:
-        std_values = list(var_dict_std.values())
-        _noise_plot(intensities=intensities, mean_values=mean_values, std_values=std_values,
-                    slope=slope, intercept=intercept)
-
-    return var_dict_mean, var_dict_std, noise_density_distribution, slope
-
-
-def _noise_analysis_current_img(full_img: RealImageCT, quarter_img: RealImageCT,
-                                squared_diff_dict: dict, noised_values_dict: dict) -> (dict, dict):
-    """Compute variance of pixel value respectively for all pixel intensity"""
-    # Compute mask to know which pixel to drop during analysis
-    mask = _create_mask(img=full_img)
-    # Start the analysis
-    f_img = full_img.pil
-    q_img = quarter_img.pil
-    for x in range(full_img.width):
-        for y in range(full_img.height):
-            if mask[x][y]:
-                f_intensity = f_img.getpixel((x, y))
-                q_intensity = q_img.getpixel((x, y))
-                squared_diff = (f_intensity - q_intensity) ** 2
-                # Store the values
-                squared_diff_dict[f_intensity].append(squared_diff)
-                noised_values_dict[f_intensity].append(q_intensity)
-
-    return squared_diff_dict, noised_values_dict
-
-
-# TODO: Still need to think about the occlusion in CT Image. Currently setting no mask (maybe no big deal).
-def _create_mask(img: RealImageCT) -> np.ndarray:
-    """Compute the mask of the current image. Indeed, real CT Images are not square image, then black pixels are added
-    circularly around the image. We don't want to analyze these pixels that do not carry useful information.
-    """
-    return np.ones(shape=(img.height, img.width))
-
-
-def _valid_img_pair(full_img: RealImageCT, quarter_img: RealImageCT):
-    """Make sure that full and quarter image are their respective equivalent"""
-    f_patient, q_patient = full_img.patient, quarter_img.patient
-    f_type, q_type = full_img.type, quarter_img.type
-    f_cat, q_cat = full_img.cat, quarter_img.cat
-    if f_patient != q_patient or f_type != q_type or f_cat != q_cat:
-        raise ValueError('Images that are trying to be processed for noise analysis are not validate pair.\n'
-                         f'full is patient "{f_patient}", cat "{f_cat}" and type "{f_type}"\n'
-                         f'quarter is patient "{q_patient}", cat "{q_cat}" and type "{q_type}"')
-
-
-def _noise_plot(intensities, mean_values, std_values, slope, intercept):
-    """Plot the noise analysis"""
-    # Calculate upper and lower bounds using variance
-    upper_bounds = [mean + var for mean, var in zip(mean_values, std_values)]
-    lower_bounds = [mean - var for mean, var in zip(mean_values, std_values)]
-
-    # Plot mean values
-    plt.figure(figsize=(15, 6))
-    plt.plot(intensities, mean_values, label='mean variance')
-    plt.plot(intensities,
-             [(lambda x: slope * x + intercept)(intensity) for intensity in intensities],
-             linestyle='--',
-             color='orange',
-             label=fr'linear regression: $\alpha$={slope:.2f}')
-
-    # Plot upper and lower bounds
-    plt.plot(intensities, upper_bounds, linestyle='--', color='red', label='std of variance (mean + std)')
-    plt.plot(intensities, lower_bounds, linestyle='--', color='green', label='std of variance (mean - std)')
-
-    # Add labels and legend
-    plt.xlabel('Pixel Intensities')
-    plt.ylabel('Variance')
-    plt.title('Variance of Pixel Intensities Across Full and Quarter Dose Images')
-    plt.legend()
-
-    # Show plot
-    plt.grid(True)
-    plt.show()
+        return GroupSynth(noised_dl_image, r_min=self.r_min, r_max=self.r_max, alpha=self.alpha)
