@@ -2,6 +2,8 @@
 
 import os
 import pydicom
+import torch
+
 from image_utils.utils import *
 from tqdm.notebook import tqdm_notebook
 
@@ -30,7 +32,7 @@ def load_data(path) -> GroupReal:
 
 def _get_paths(path) -> list[str]:
     """Get all path to DICOM images."""
-    img_cats = ['train', 'test']
+    img_cats = ['ct_images', 'test']
     dicom_img_paths = []
 
     for img_cat in img_cats:
@@ -60,7 +62,7 @@ def _get_paths(path) -> list[str]:
 def _defining_img_param(path):
     """Allows to easily retrieve the type of images we are seeing."""
     params = path.split('/')
-    cat = params[1]  # train or test
+    cat = params[1]  # ct_images or test
     img_type = params[2]  # 1mm B30, 1mm D45, 3mm B30, 3mm D45
     dose = 'quarter' if params[3].startswith('quarter') or params[3].startswith('QD') else 'full'  # full or quarter
     patient = params[4]

@@ -197,14 +197,14 @@ class GroupReal(GroupImageCT):
                dose: list[str] = None,
                patient: list[str] = None):
         """Allows  to easily retrieve a subset of CT images.
-        :param cat: category of image (train or test)
+        :param cat: category of image (ct_images or test)
         :param img_type: environment used during scan (1mm B30, 1mm D45, 3mm B30, 3mm D45)
         :param dose: dose used during scan (full or quarter)
         :param patient: id of patient (L***)
         """
         # If no condition is given for a parameter, keep all of them
         if cat is None:
-            cat = ['train', 'test']
+            cat = ['ct_images', 'test']
         if img_type is None:
             img_type = ['1mm B30', '1mm D45', '3mm B30', '3mm D45']
         if dose is None:
