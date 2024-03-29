@@ -3,7 +3,7 @@ import shutil
 
 if __name__ == "__main__":
 
-    path = input("Which one are you restructuring (ct_images or test folder) ? ")
+    path = input("Which one are you restructuring (train or test folder) ? ")
 
     try:
         os.chdir(path)
