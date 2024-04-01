@@ -90,8 +90,8 @@ class CnnTrainer(CNN):
                 self._save_model()
 
         # Plot training curves TODO: code function to plot history metric after the all training
-        # if plot:
-        #     self._plot_training_curves(self.num_epochs)
+        if plot:
+            self.print_training_stats()
 
     def _train_epoch(self):
         """Train one epoch"""
@@ -107,7 +107,7 @@ class CnnTrainer(CNN):
         lr_history = []
 
         for batch_idx, (data, target) in tqdm(enumerate(self.training_loader), total=self.training_batch_number,
-                                              desc=f"Progress of training epoch {self.cur_epoch+1}"):
+                                              desc=f"Progress of training epoch {self.cur_epoch + 1}"):
             # Move the data to the device
             data, target = data.to(self.device), target.to(self.device)
             # Zero the gradients
@@ -148,7 +148,7 @@ class CnnTrainer(CNN):
         val_psnr_history = []
         val_ssim_history = []
         for data, target in tqdm(self.validation_loader, total=self.val_batch_number,
-                                 desc=f"Progress of validation metrics epoch {self.cur_epoch+1}"):
+                                 desc=f"Progress of validation metrics epoch {self.cur_epoch + 1}"):
             # Move the data to the device
             data, target = data.to(self.device), target.to(self.device)
             # Compute model output
@@ -177,7 +177,7 @@ class CnnTrainer(CNN):
             'batch_size': self.batch_size,
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
-            'criterion':  self.criterion,
+            'criterion': self.criterion,
             'schedular_state_dict': self.schedular.state_dict(),
             'train_loss_history': self.train_loss_history,
             'train_mse_history': self.train_mse_history,

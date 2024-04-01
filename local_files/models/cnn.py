@@ -4,6 +4,8 @@ Create CNN class where our model will find all their environment to ct_images or
 from abc import ABC
 
 import torch
+import numpy as np
+import matplotlib.pyplot as plt
 from torchvision import transforms
 from PIL import Image
 from torch.utils.data import TensorDataset, DataLoader
@@ -107,3 +109,96 @@ class CNN(ABC):
         self.val_ssim_history = model_save['val_ssim_history']
         self.lr_history = model_save['lr_history']
 
+    def print_training_stats(self, start: int = 0, end: int = None):
+        """Plot train and val metrics evolution"""
+
+        # Define the range of printing
+        if end is None:
+            end = self.cur_epoch
+
+        # Compute the means and quantiles of each metrics
+        # Training loss
+        mean_loss_tr = [np.mean(values) for values in self.train_loss_history]
+        quantile_20_loss_tr = [np.quantile(values, q=0.2) for values in self.train_loss_history]
+        quantile_80_loss_tr = [np.quantile(values, q=0.8) for values in self.train_loss_history]
+        # Validation loss
+        mean_loss_val = [np.mean(values) for values in self.val_loss_history]
+        quantile_20_loss_val = [np.quantile(values, q=0.2) for values in self.val_loss_history]
+        quantile_80_loss_val = [np.quantile(values, q=0.8) for values in self.val_loss_history]
+
+        # Training MSE
+        mean_mse_tr = [np.mean(values) for values in self.train_mse_history]
+        quantile_20_mse_tr = [np.quantile(values, q=0.2) for values in self.train_mse_history]
+        quantile_80_mse_tr = [np.quantile(values, q=0.8) for values in self.train_mse_history]
+        # Validation MSE
+        mean_mse_val = [np.mean(values) for values in self.val_mse_history]
+        quantile_20_mse_val = [np.quantile(values, q=0.2) for values in self.val_mse_history]
+        quantile_80_mse_val = [np.quantile(values, q=0.8) for values in self.val_mse_history]
+
+        # Training PSNR
+        mean_psnr_tr = [np.mean(values) for values in self.train_psnr_history]
+        quantile_20_psnr_tr = [np.quantile(values, q=0.2) for values in self.train_psnr_history]
+        quantile_80_psnr_tr = [np.quantile(values, q=0.8) for values in self.train_psnr_history]
+        # Validation PSNR
+        mean_psnr_val = [np.mean(values) for values in self.val_mse_history]
+        quantile_20_psnr_val = [np.quantile(values, q=0.2) for values in self.val_mse_history]
+        quantile_80_psnr_val = [np.quantile(values, q=0.8) for values in self.val_mse_history]
+
+        # Training SSIM
+        mean_ssim_tr = [np.mean(values) for values in self.train_ssim_history]
+        quantile_20_ssim_tr = [np.quantile(values, q=0.2) for values in self.train_ssim_history]
+        quantile_80_ssim_tr = [np.quantile(values, q=0.8) for values in self.train_ssim_history]
+        # Validation SSIM
+        mean_ssim_val = [np.mean(values) for values in self.val_ssim_history]
+        quantile_20_ssim_val = [np.quantile(values, q=0.2) for values in self.val_ssim_history]
+        quantile_80_ssim_val = [np.quantile(values, q=0.8) for values in self.val_ssim_history]
+
+        epoch_evol = range(start + 1, end + 1)
+
+        fig, ax = plt.subplots(2, 2, figsize=(15, 12))
+
+        # Plot loss evolution
+        ax[0][0].plot(epoch_evol, mean_loss_tr[start:end], label='Train', color='blue')
+        ax[0][0].plot(epoch_evol, mean_loss_val[start:end], label='Val', color='orange')
+        ax[0][0].plot(epoch_evol, quantile_20_loss_tr[start:end], color='blue', linestyle='dotted')
+        ax[0][0].plot(epoch_evol, quantile_80_loss_tr[start:end], color='blue', linestyle='dotted')
+        ax[0][0].plot(epoch_evol, quantile_20_loss_val[start:end], color='orange', linestyle='dotted')
+        ax[0][0].plot(epoch_evol, quantile_80_loss_val[start:end], color='orange', linestyle='dotted')
+        ax[0][0].legend()
+        ax[0][0].set_xlabel('Epoch')
+        ax[0][0].set_ylabel('Loss')
+
+        # Plot mse evolution
+        ax[0][1].plot(epoch_evol, mean_mse_tr[start:end], label='Train', color='blue')
+        ax[0][1].plot(epoch_evol, mean_mse_val[start:end], label='Val', color='orange')
+        ax[0][1].plot(epoch_evol, quantile_20_mse_tr[start:end], color='blue', linestyle='dotted')
+        ax[0][1].plot(epoch_evol, quantile_80_mse_tr[start:end], color='blue', linestyle='dotted')
+        ax[0][1].plot(epoch_evol, quantile_20_mse_val[start:end], color='orange', linestyle='dotted')
+        ax[0][1].plot(epoch_evol, quantile_80_mse_val[start:end], color='orange', linestyle='dotted')
+        ax[0][1].legend()
+        ax[0][1].set_xlabel('Epoch')
+        ax[0][1].set_ylabel('MSE')
+
+        # Plot psnr evolution
+        ax[1][0].plot(epoch_evol, mean_psnr_tr[start:end], label='Train', color='blue')
+        ax[1][0].plot(epoch_evol, mean_psnr_val[start:end], label='Val', color='orange')
+        ax[1][0].plot(epoch_evol, quantile_20_psnr_tr[start:end], color='blue', linestyle='dotted')
+        ax[1][0].plot(epoch_evol, quantile_80_psnr_tr[start:end], color='blue', linestyle='dotted')
+        ax[1][0].plot(epoch_evol, quantile_20_psnr_val[start:end], color='orange', linestyle='dotted')
+        ax[1][0].plot(epoch_evol, quantile_80_psnr_val[start:end], color='orange', linestyle='dotted')
+        ax[1][0].legend()
+        ax[1][0].set_xlabel('Epoch')
+        ax[1][0].set_ylabel('PSNR')
+
+        # Plot ssim evolution
+        ax[1][1].plot(epoch_evol, mean_ssim_tr[start:end], label='Train', color='blue')
+        ax[1][1].plot(epoch_evol, mean_ssim_val[start:end], label='Val', color='orange')
+        ax[1][1].plot(epoch_evol, quantile_20_ssim_tr[start:end], color='blue', linestyle='dotted')
+        ax[1][1].plot(epoch_evol, quantile_80_ssim_tr[start:end], color='blue', linestyle='dotted')
+        ax[1][1].plot(epoch_evol, quantile_20_ssim_val[start:end], color='orange', linestyle='dotted')
+        ax[1][1].plot(epoch_evol, quantile_80_ssim_val[start:end], color='orange', linestyle='dotted')
+        ax[1][1].legend()
+        ax[1][1].set_xlabel('Epoch')
+        ax[1][1].set_ylabel('SSIM')
+
+        plt.show()
