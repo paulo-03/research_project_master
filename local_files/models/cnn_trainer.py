@@ -11,6 +11,7 @@ from tqdm import tqdm
 from dataset import DeadLeaves
 from torch.utils.data import DataLoader, random_split
 from performance_metrics import get_metrics
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from cnn import CNN
 
@@ -19,9 +20,7 @@ class CnnTrainer(CNN):
     def __init__(self, data_kwargs: dict,
                  num_epochs: int,
                  device: str,
-                 optimizer: torch.optim,
-                 criterion: nn.functional,
-                 schedular: torch.optim.lr_scheduler,
+                 optimizer_kwargs: dict,
                  model_name: str = "DnCNN",
                  model_saving_path: str = None,
                  val_size: float = 0.2) -> None:
@@ -34,18 +33,24 @@ class CnnTrainer(CNN):
         self.model_saving_path = model_saving_path
 
         # Get loader from disk
-        self.training_loader, self.validation_loader = self._get_data_loader_from_disk(**data_kwargs)
+        self.training_loader, self.validation_loader = self._get_data_loader_from_disk(
+            images_folder_path=data_kwargs['images_folder_path'],
+            target_folder_path=data_kwargs['target_folder_path']
+        )
 
         # Ensure that the function that got the dataloader correctly set the train and val set size
         assert self.train_set_size != 0, 'The ct_images set size has not been properly set'
         assert self.val_set_size != 0, 'The val set size has not been properly set'
 
-        self.training_batch_number = int(self.train_set_size / data_kwargs['batch_size'])
-        self.val_batch_number = int(self.val_set_size / data_kwargs['batch_size'])
+        self.training_batch_number = int(self.train_set_size / self.batch_size)
+        self.val_batch_number = int(self.val_set_size / self.batch_size)
 
-        self.optimizer = optimizer
-        self.criterion = criterion
-        self.schedular = schedular
+        self.optimizer = torch.optim.Adam(self.model.parameters(), **optimizer_kwargs)
+        self.criterion = nn.MSELoss()
+        self.schedular = CosineAnnealingLR(
+            self.optimizer,
+            T_max=(len(self.training_loader.dataset) * self.num_epochs) // self.training_loader.batch_size
+        )
 
     def fit(self, plot: bool = False) -> None:
         """Compute the training of the model"""
@@ -61,11 +66,11 @@ class CnnTrainer(CNN):
 
             print(
                 f"- Average metrics: \n"
-                f"\t\t- train loss={np.mean(train_loss)}, "
-                f"train mse={np.mean(train_mse)}, "
+                f"\t- train loss={np.mean(train_loss):.2e}, "
+                f"train mse={np.mean(train_mse):.2e}, "
                 f"learning rate={np.mean(lrs)} \n"
-                f"\t\t- val loss={val_loss}, "
-                f"val mse={val_mse} \n"
+                f"\t- val loss={np.mean(val_loss):.2e}, "
+                f"val mse={np.mean(val_mse):.2e} \n"
                 f"Finish Training Epoch {epoch} !\n"
             )
 
@@ -102,7 +107,7 @@ class CnnTrainer(CNN):
         lr_history = []
 
         for batch_idx, (data, target) in tqdm(enumerate(self.training_loader), total=self.training_batch_number,
-                                              desc=f"Progress of training epoch {self.cur_epoch}"):
+                                              desc=f"Progress of training epoch {self.cur_epoch+1}"):
             # Move the data to the device
             data, target = data.to(self.device), target.to(self.device)
             # Zero the gradients
@@ -115,7 +120,7 @@ class CnnTrainer(CNN):
             loss.backward()
             # Perform an optimizer step
             self.optimizer.step()
-            # Perform a learning rate scheduler step (if schedular set)
+            # Perform a learning rate scheduler step
             self.schedular.step()
 
             # Calculate batch metrics TODO: Find a way to efficiently compute ssim
@@ -143,7 +148,7 @@ class CnnTrainer(CNN):
         val_psnr_history = []
         val_ssim_history = []
         for data, target in tqdm(self.validation_loader, total=self.val_batch_number,
-                                 desc=f"Progress of training epoch {self.cur_epoch}"):
+                                 desc=f"Progress of validation metrics epoch {self.cur_epoch+1}"):
             # Move the data to the device
             data, target = data.to(self.device), target.to(self.device)
             # Compute model output
@@ -204,4 +209,4 @@ class CnnTrainer(CNN):
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
         val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
 
-        return train_loader,  val_loader
+        return train_loader, val_loader

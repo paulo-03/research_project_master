@@ -7,8 +7,12 @@ import torch
 
 def get_metrics(predictions: torch.Tensor, targets: torch.Tensor):
     """Return performance metrics to quantify our models abilities to denoise CT Images"""
-    mse = _mse(predictions, targets)
-    psnr = _psnr(mse)
+    # Compute metrics of all element in batch
+    mses = _mse(predictions, targets)
+    psnrs = _psnr(mses)
+    # Compute the mean metric of the current batch
+    mse = mses.mean().item()
+    psnr = psnrs.mean().item()
     ssim = _ssim(predictions, targets)
 
     return mse, psnr, ssim

@@ -204,7 +204,7 @@ class GroupReal(GroupImageCT):
         """
         # If no condition is given for a parameter, keep all of them
         if cat is None:
-            cat = ['ct_images', 'test']
+            cat = ['train', 'test']
         if img_type is None:
             img_type = ['1mm B30', '1mm D45', '3mm B30', '3mm D45']
         if dose is None:

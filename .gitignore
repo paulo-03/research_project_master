@@ -1,8 +1,8 @@
 .DS_Store
 .idea/
+*__pycache__/
 local_files/.DS_Store
 local_files/data/train
 local_files/dl_images/*
 runai
 runai/jobs
-local_files/image_utils/__pycache__/

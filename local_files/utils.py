@@ -32,29 +32,26 @@ def load_data(path) -> GroupReal:
 
 def _get_paths(path) -> list[str]:
     """Get all path to DICOM images."""
-    img_cats = ['ct_images', 'test']
     dicom_img_paths = []
+    start_path = '/'.join([path, 'train'])  # data/train
+    # filter possible unwanted folder/files
+    img_types = [img_type for img_type in os.listdir(start_path) if img_type != '.DS_Store']
 
-    for img_cat in img_cats:
-        start_path = '/'.join([path, img_cat])  # data/img_cat
-        # filter possible unwanted folder/files
-        img_types = [img_type for img_type in os.listdir(start_path) if img_type != '.DS_Store']
+    for img_type in img_types:
+        type_path = '/'.join([start_path, img_type])  # data/img_cat/img_type
+        img_doses = [img_dose for img_dose in os.listdir(type_path) if img_dose != '.DS_Store']
 
-        for img_type in img_types:
-            type_path = '/'.join([start_path, img_type])  # data/img_cat/img_type
-            img_doses = [img_dose for img_dose in os.listdir(type_path) if img_dose != '.DS_Store']
+        for img_dose in img_doses:
+            dose_path = '/'.join([type_path, img_dose])  # data/img_cat/img_type/img_dose
+            img_patients = [img_patient for img_patient in os.listdir(dose_path) if img_patient != '.DS_Store']
 
-            for img_dose in img_doses:
-                dose_path = '/'.join([type_path, img_dose])  # data/img_cat/img_type/img_dose
-                img_patients = [img_patient for img_patient in os.listdir(dose_path) if img_patient != '.DS_Store']
+            for img_patient in img_patients:
+                patient_path = '/'.join([dose_path, img_patient])  # data/img_cat/img_type/img_dose/img_patient
+                imgs_full_path = [item for item in sorted(os.listdir(patient_path)) if item.endswith('.IMA')]
 
-                for img_patient in img_patients:
-                    patient_path = '/'.join([dose_path, img_patient])  # data/img_cat/img_type/img_dose/img_patient
-                    imgs_full_path = [item for item in sorted(os.listdir(patient_path)) if item.endswith('.IMA')]
-
-                    for img_full_path in imgs_full_path:
-                        item_path = '/'.join([patient_path, img_full_path])
-                        dicom_img_paths.append(item_path)
+                for img_full_path in imgs_full_path:
+                    item_path = '/'.join([patient_path, img_full_path])
+                    dicom_img_paths.append(item_path)
 
     return dicom_img_paths
 
@@ -62,7 +59,7 @@ def _get_paths(path) -> list[str]:
 def _defining_img_param(path):
     """Allows to easily retrieve the type of images we are seeing."""
     params = path.split('/')
-    cat = params[1]  # ct_images or test
+    cat = params[1]  # train
     img_type = params[2]  # 1mm B30, 1mm D45, 3mm B30, 3mm D45
     dose = 'quarter' if params[3].startswith('quarter') or params[3].startswith('QD') else 'full'  # full or quarter
     patient = params[4]
