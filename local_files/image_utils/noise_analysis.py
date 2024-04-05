@@ -3,60 +3,46 @@ Noise analysis functions.
 """
 
 import numpy as np
+import pyxu
 from PIL import Image
+import pyxu.abc as pxa
+import pyxu.operator as pxo
+from pyxu.operator.interop import from_source
+import skimage.transform as skt
 
 
-def de_trending(image: Image, roi_size):
-    """Removing the structural noise using a de-trending technique in which a polynomial fitted image Cp(x, y) was
-    subtracted from the original CT image C(x, y)."""
-    # Convert PIL image to NumPy array
-    image_arr = np.array(image)
+def ct_to_sino(shape: tuple = (500, 500), angles: int = 90, wsize: int = 5):
+    # Radon Operator (imported from `skt` since Pyxu did not ship with a Radon transform at the time of this writing.)
+    size = shape[0] * shape[1]
+    Radon = from_source(cls=pxa.LinOp,
+                        shape=(size, size),
+                        apply=lambda _, arr: skt.radon(arr.reshape(shape),
+                                                       theta=np.linspace(0, 180, angles),
+                                                       circle=True).ravel(),
+                        adjoint=lambda _, arr: skt.iradon(arr.reshape(sino.shape),
+                                                          filter_name=None,
+                                                          circle=True).ravel(),
+                        vectorize=["apply", "adjoint"],
+                        vmethod="scan",
+                        enforce_precision=["apply", "adjoint"])
 
-    # Extract ROI from the center of the image
-    center_x = image_arr.shape[0] // 2
-    center_y = image_arr.shape[1] // 2
-    half_roi = roi_size // 2
-    roi = image_arr[center_x - half_roi: center_x + half_roi,
-                    center_y - half_roi: center_y + half_roi]
+    # 1D Filtering
+    boxcar = np.asarray(sp.signal.get_window("boxcar", wsize))
+    boxcar /= wsize
+    BoxCar1D = pxo.Stencil(kernel=[boxcar, np.array([1.0])], center=(wsize // 2, 0), arg_shape=shape, )
 
-    # Perform surface fitting on the ROI data using polynomial function
-    x = np.arange(roi.shape[0])
-    y = np.arange(roi.shape[1])
-    xx, yy = np.meshgrid(x, y)
-    z = roi
-    coeffs = np.polyfit((xx, yy), z, 2)  # Adjust degree as needed
-    fitted_surface = np.polyval(coeffs, (xx, yy))
+    # Partial Masking
+    Mask = pxo.DiagonalOp(mask.ravel())
 
-    # Subtract fitted surface from original image
-    detrended_array = image_arr - fitted_surface
+    # Tapering
+    taper = np.outer(sp.signal.get_window("hamming", shape[0]), np.ones(shape[1]))
+    Taper = pxo.DiagonalOp(taper.ravel())
 
-    # Convert NumPy array back to PIL image
-    detrended_image = Image.fromarray(detrended_array)
+    # Compose operators
+    Phi = Taper * Mask * BoxCar1D * Radon
 
-    return detrended_image
-
-
-def nps_2d(image):
-    """Compute the Noise Power Spectrum (NPS) of CT Images."""
-    NotImplementedError
+    return NotImplementedError
 
 
-def nps_1d(nps2d):
-    """1D NPS is obtained by taking several interpolated sampling of NPS2d along the radial direction at varying angles
-    (0 to π), and performing the average of them."""
-    NotImplementedError
-
-
-def neq():
-    """Estimate the Noise Equivalent Quanta (NEQ) from NPS"""
-    NotImplementedError
-
-
-def mtf():
-    """Compute Modulation Transfer Function (MTF) from NPS"""
-    NotImplementedError
-
-
-def noise_model_param():
-    """Curve fitting in NEQ estimations to retrieve noise model parameters"""
-    NotImplementedError
+def sino_to_ct():
+    return NotImplementedError

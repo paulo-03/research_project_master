@@ -210,3 +210,6 @@ class CnnTrainer(CNN):
         val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
 
         return train_loader, val_loader
+
+
+# Add noise in the CT trainer class.

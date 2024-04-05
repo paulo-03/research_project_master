@@ -306,19 +306,19 @@ class GroupReal(GroupImageCT):
 
         # Compute the mean variance, std of variances and density distribution for all pixels intensities
         var_dict_mean = {}
-        var_dict_std = {}
+        var_dict_q8 = {}
+        var_dict_q2 = {}
         noise_density_distribution = {}
         for intensity in tqdm_notebook(range(256),
-                                       desc="Computing mean variance, std of variances and density distribution for "
-                                            "all pixels intensities"):
+                                       desc="Computing mean variance, quantile of variances and density distribution"
+                                            "for all pixels intensities"):
             # Mean variance
             n = len(squared_diff_dict[intensity])
             mean = sum(squared_diff_dict[intensity]) / n
             var_dict_mean[intensity] = mean
-            # Std variance
-            squared_diff = [(x - mean) ** 2 for x in squared_diff_dict[intensity]]
-            variance = sum(squared_diff) / n
-            var_dict_std[intensity] = variance ** 0.5
+            # Quantile variance
+            var_dict_q8[intensity] = np.quantile(squared_diff_dict[intensity], q=0.8)
+            var_dict_q2[intensity] = np.quantile(squared_diff_dict[intensity], q=0.2)
             # Density distribution
             density, intensities = np.histogram(noised_values_dict[intensity], bins=np.arange(0, 255 + 2), density=True)
             noise_density_distribution[intensity] = [density, intensities[:-1]]
@@ -330,11 +330,13 @@ class GroupReal(GroupImageCT):
 
         # If plot is set to True, show a nice plot with mean and variance of each pixel intensity
         if plot:
-            std_values = list(var_dict_std.values())
-            self._noise_plot(intensities=intensities, mean_values=mean_values, std_values=std_values,
+            q2_values = list(var_dict_q2.values())
+            q8_values = list(var_dict_q8.values())
+
+            self._noise_plot(intensities=intensities, mean_values=mean_values, q2_values=q2_values, q8_values=q8_values,
                              slope=slope, intercept=intercept)
 
-        return var_dict_mean, var_dict_std, noise_density_distribution, slope
+        return var_dict_mean, var_dict_q2, var_dict_q8, noise_density_distribution, slope
 
     def _noise_analysis_current_img(self, full_img: RealImageCT, quarter_img: RealImageCT,
                                     squared_diff_dict: dict, noised_values_dict: dict) -> (dict, dict):
@@ -376,15 +378,15 @@ class GroupReal(GroupImageCT):
                              f'quarter is patient "{q_patient}", cat "{q_cat}" and type "{q_type}"')
 
     @staticmethod
-    def _noise_plot(intensities, mean_values, std_values, slope, intercept):
+    def _noise_plot(intensities, mean_values, q2_values, q8_values, slope, intercept):
         """Plot the noise analysis"""
         # Calculate upper and lower bounds using variance
-        upper_bounds = [mean + var for mean, var in zip(mean_values, std_values)]
-        lower_bounds = [mean - var for mean, var in zip(mean_values, std_values)]
+        upper_bounds = q8_values
+        lower_bounds = q2_values
 
         # Plot mean values
         plt.figure(figsize=(15, 6))
-        plt.plot(intensities, mean_values, label='mean variance')
+        plt.plot(intensities, mean_values, label='mean of variance')
         plt.plot(intensities,
                  [(lambda x: slope * x + intercept)(intensity) for intensity in intensities],
                  linestyle='--',
@@ -392,8 +394,8 @@ class GroupReal(GroupImageCT):
                  label=fr'linear regression: $\alpha$={slope:.2f}')
 
         # Plot upper and lower bounds
-        plt.plot(intensities, upper_bounds, linestyle='--', color='red', label='std of variance (mean + std)')
-        plt.plot(intensities, lower_bounds, linestyle='--', color='green', label='std of variance (mean - std)')
+        plt.plot(intensities, upper_bounds, linestyle='--', color='red', label='quantile of variance (80%)')
+        plt.plot(intensities, lower_bounds, linestyle='--', color='green', label='quantile of variance (20%)')
 
         # Add labels and legend
         plt.xlabel('Pixel Intensities')
