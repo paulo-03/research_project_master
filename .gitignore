@@ -1,8 +1,7 @@
-.DS_Store
-.idea/
+*.DS_Store
+*.idea/
 *__pycache__/
-local_files/.DS_Store
-local_files/data/train
-local_files/dl_images/*
+*.ipynb_checkpoints/
+local_files/data_stats_analysis/train
+local_files/data/*
 runai
-runai/jobs

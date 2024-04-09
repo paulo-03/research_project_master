@@ -35,7 +35,7 @@ class CnnTrainer(CNN):
         # Get loader from disk
         self.training_loader, self.validation_loader = self._get_data_loader_from_disk(
             images_folder_path=data_kwargs['images_folder_path'],
-            target_folder_path=data_kwargs['target_folder_path']
+            add_noise=data_kwargs['add_noise']
         )
 
         # Ensure that the function that got the dataloader correctly set the train and val set size
@@ -124,7 +124,7 @@ class CnnTrainer(CNN):
             self.schedular.step()
 
             # Calculate batch metrics TODO: Find a way to efficiently compute ssim
-            mse, pnsr, ssim = get_metrics(output, target)
+            mse, pnsr, ssim = get_metrics(output, target, self.device)
 
             # Store metrics
             train_loss_history.append(loss.item())
@@ -157,12 +157,12 @@ class CnnTrainer(CNN):
             loss = self.criterion(output, target)
 
             # Calculate batch metrics TODO: Find a way to efficiently compute ssim
-            mse, pnsr, ssim = get_metrics(output, target)
+            mse, psnr, ssim = get_metrics(output, target, self.device)
 
             # Store metrics
             val_loss_history.append(loss.item())
             val_mse_history.append(mse)
-            val_psnr_history.append(pnsr)
+            val_psnr_history.append(psnr)
             val_ssim_history.append(ssim)
 
         return val_loss_history, val_mse_history, val_psnr_history, val_ssim_history
@@ -194,11 +194,11 @@ class CnnTrainer(CNN):
 
         torch.save(state, path.join(self.model_saving_path, f'training_save_epoch_{self.cur_epoch}.tar'))
 
-    def _get_data_loader_from_disk(self, images_folder_path: str, target_folder_path: str) -> (DataLoader, DataLoader):
+    def _get_data_loader_from_disk(self, images_folder_path: str, add_noise) -> (DataLoader, DataLoader):
         """Helper function to load data into train and validation Dataloader directly from the disk."""
 
         # Get the dataset
-        dataset = DeadLeaves(images_folder_path, target_folder_path)
+        dataset = DeadLeaves(images_folder_path, add_noise)
 
         # Calculate the val and train size and split the dataset
         self.val_set_size = int(self.val_size * len(dataset))
@@ -206,7 +206,7 @@ class CnnTrainer(CNN):
         train_dataset, val_dataset = random_split(dataset, lengths=[self.train_set_size, self.val_set_size])
 
         # Create train and validation Dataloader
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size)
         val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
 
         return train_loader, val_loader

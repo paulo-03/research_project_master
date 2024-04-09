@@ -71,7 +71,7 @@ class CNN(ABC):
 
         predictions = []
         for img in images_dataloader:
-            # Move the data to the device
+            # Move the data_stats_analysis to the device
             img = img[0].to(self.device)
             # Compute model output
             prediction = self.model(img)
@@ -126,23 +126,17 @@ class CNN(ABC):
         quantile_20_loss_val = [np.quantile(values, q=0.2) for values in self.val_loss_history]
         quantile_80_loss_val = [np.quantile(values, q=0.8) for values in self.val_loss_history]
 
-        # Training MSE
-        mean_mse_tr = [np.mean(values) for values in self.train_mse_history]
-        quantile_20_mse_tr = [np.quantile(values, q=0.2) for values in self.train_mse_history]
-        quantile_80_mse_tr = [np.quantile(values, q=0.8) for values in self.train_mse_history]
-        # Validation MSE
-        mean_mse_val = [np.mean(values) for values in self.val_mse_history]
-        quantile_20_mse_val = [np.quantile(values, q=0.2) for values in self.val_mse_history]
-        quantile_80_mse_val = [np.quantile(values, q=0.8) for values in self.val_mse_history]
+        # Learning rate evolution
+        mean_lr = [np.mean(values) for values in self.lr_history]
 
         # Training PSNR
         mean_psnr_tr = [np.mean(values) for values in self.train_psnr_history]
         quantile_20_psnr_tr = [np.quantile(values, q=0.2) for values in self.train_psnr_history]
         quantile_80_psnr_tr = [np.quantile(values, q=0.8) for values in self.train_psnr_history]
         # Validation PSNR
-        mean_psnr_val = [np.mean(values) for values in self.val_mse_history]
-        quantile_20_psnr_val = [np.quantile(values, q=0.2) for values in self.val_mse_history]
-        quantile_80_psnr_val = [np.quantile(values, q=0.8) for values in self.val_mse_history]
+        mean_psnr_val = [np.mean(values) for values in self.val_psnr_history]
+        quantile_20_psnr_val = [np.quantile(values, q=0.2) for values in self.val_psnr_history]
+        quantile_80_psnr_val = [np.quantile(values, q=0.8) for values in self.val_psnr_history]
 
         # Training SSIM
         mean_ssim_tr = [np.mean(values) for values in self.train_ssim_history]
@@ -166,18 +160,13 @@ class CNN(ABC):
         ax[0][0].plot(epoch_evol, quantile_80_loss_val[start:end], color='orange', linestyle='dotted')
         ax[0][0].legend()
         ax[0][0].set_xlabel('Epoch')
-        ax[0][0].set_ylabel('Loss')
+        ax[0][0].set_ylabel('MSE-Loss')
 
-        # Plot mse evolution
-        ax[0][1].plot(epoch_evol, mean_mse_tr[start:end], label='Train', color='blue')
-        ax[0][1].plot(epoch_evol, mean_mse_val[start:end], label='Val', color='orange')
-        ax[0][1].plot(epoch_evol, quantile_20_mse_tr[start:end], color='blue', linestyle='dotted')
-        ax[0][1].plot(epoch_evol, quantile_80_mse_tr[start:end], color='blue', linestyle='dotted')
-        ax[0][1].plot(epoch_evol, quantile_20_mse_val[start:end], color='orange', linestyle='dotted')
-        ax[0][1].plot(epoch_evol, quantile_80_mse_val[start:end], color='orange', linestyle='dotted')
+        # Plot lr evolution
+        ax[0][1].plot(epoch_evol, mean_lr[start:end], color='blue')
         ax[0][1].legend()
         ax[0][1].set_xlabel('Epoch')
-        ax[0][1].set_ylabel('MSE')
+        ax[0][1].set_ylabel('Learning Rate')
 
         # Plot psnr evolution
         ax[1][0].plot(epoch_evol, mean_psnr_tr[start:end], label='Train', color='blue')
