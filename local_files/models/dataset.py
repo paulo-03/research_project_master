@@ -23,7 +23,7 @@ class DeadLeaves(Dataset):
     def __getitem__(self, item: int):
         image_path = path.join(self.images_folder_path, self.images_name[item])
         # Retrieve the ideal image and add to it some noise
-        ideal = read_image(image_path)*255
+        ideal = read_image(image_path)
         noised = self.add_noise(ideal)
         # Transform tensor type to float
         data = self.to_float(noised)
