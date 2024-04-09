@@ -195,7 +195,7 @@ class CnnTrainer(CNN):
         torch.save(state, path.join(self.model_saving_path, f'training_save_epoch_{self.cur_epoch}.tar'))
 
     def _get_data_loader_from_disk(self, images_folder_path: str, add_noise) -> (DataLoader, DataLoader):
-        """Helper function to load data into train and validation Dataloader directly from the disk."""
+        """Helper function to load data into train and validation Dataloadxer directly from the disk."""
 
         # Get the dataset
         dataset = DeadLeaves(images_folder_path, add_noise)
@@ -206,7 +206,7 @@ class CnnTrainer(CNN):
         train_dataset, val_dataset = random_split(dataset, lengths=[self.train_set_size, self.val_set_size])
 
         # Create train and validation Dataloader
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size)
+        train_loader = DataLoader(train_dataset, batch_size=self.batcxh_size)
         val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
 
         return train_loader, val_loader

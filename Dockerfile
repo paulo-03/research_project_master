@@ -18,6 +18,7 @@ RUN apt-get update &&  DEBIAN_FRONTEND="noninteractive" TZ="Europe/Zurich" apt-g
 RUN pip3 --no-cache-dir install \
     torch==2.1.0 \
     torchvision==0.16 \
+    torchmetrics==1.3.2 \
     numpy==1.25.2 \
     tqdm==4.66.2 \
     scipy==1.11.4 \
