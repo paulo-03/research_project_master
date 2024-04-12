@@ -6,6 +6,7 @@ from abc import ABC
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 from torchvision import transforms
 from PIL import Image
 from torch.utils.data import TensorDataset, DataLoader
@@ -151,45 +152,46 @@ class CNN(ABC):
 
         epoch_evol = range(start + 1, end + 1)
 
-        fig, ax = plt.subplots(2, 2, figsize=(15, 12))
-
+        # Set seaborn style
+        sns.set_style("whitegrid")
+        
         # Plot loss evolution
-        ax[0][0].plot(epoch_evol, mean_loss_tr[start:end], label='Train', color='blue')
-        ax[0][0].plot(epoch_evol, mean_loss_val[start:end], label='Val', color='orange')
-        ax[0][0].plot(epoch_evol, quantile_20_loss_tr[start:end], color='blue', linestyle='dotted')
-        ax[0][0].plot(epoch_evol, quantile_80_loss_tr[start:end], color='blue', linestyle='dotted')
-        ax[0][0].plot(epoch_evol, quantile_20_loss_val[start:end], color='orange', linestyle='dotted')
-        ax[0][0].plot(epoch_evol, quantile_80_loss_val[start:end], color='orange', linestyle='dotted')
-        ax[0][0].legend()
-        ax[0][0].set_xlabel('Epoch')
-        ax[0][0].set_ylabel('MSE-Loss')
-
+        plt.figure(figsize=(10, 5))
+        
+        plt.subplot(2, 2, 1)
+        sns.lineplot(x=epoch_evol, y=mean_loss_tr[start:end], label='Train', color='blue')
+        sns.lineplot(x=epoch_evol, y=mean_loss_val[start:end], label='Val', color='orange')
+        plt.fill_between(epoch_evol, quantile_20_loss_tr[start:end], quantile_80_loss_tr[start:end], color='blue', alpha=0.2)
+        plt.fill_between(epoch_evol, quantile_20_loss_val[start:end], quantile_80_loss_val[start:end], color='orange', alpha=0.2)
+        plt.xlabel('Epoch')
+        plt.ylabel('MSE-Loss')
+        plt.legend()
+        
         # Plot lr evolution
-        ax[0][1].plot(epoch_evol, mean_lr[start:end], color='blue')
-        ax[0][1].legend()
-        ax[0][1].set_xlabel('Epoch')
-        ax[0][1].set_ylabel('Learning Rate')
-
+        plt.subplot(2, 2, 2)
+        sns.lineplot(x=epoch_evol, y=mean_lr[start:end], color='blue')
+        plt.xlabel('Epoch')
+        plt.ylabel('Learning Rate')
+        
         # Plot psnr evolution
-        ax[1][0].plot(epoch_evol, mean_psnr_tr[start:end], label='Train', color='blue')
-        ax[1][0].plot(epoch_evol, mean_psnr_val[start:end], label='Val', color='orange')
-        ax[1][0].plot(epoch_evol, quantile_20_psnr_tr[start:end], color='blue', linestyle='dotted')
-        ax[1][0].plot(epoch_evol, quantile_80_psnr_tr[start:end], color='blue', linestyle='dotted')
-        ax[1][0].plot(epoch_evol, quantile_20_psnr_val[start:end], color='orange', linestyle='dotted')
-        ax[1][0].plot(epoch_evol, quantile_80_psnr_val[start:end], color='orange', linestyle='dotted')
-        ax[1][0].legend()
-        ax[1][0].set_xlabel('Epoch')
-        ax[1][0].set_ylabel('PSNR')
-
+        plt.subplot(2, 2, 3)
+        sns.lineplot(x=epoch_evol, y=mean_psnr_tr[start:end], label='Train', color='blue')
+        sns.lineplot(x=epoch_evol, y=mean_psnr_val[start:end], label='Val', color='orange')
+        plt.fill_between(epoch_evol, quantile_20_psnr_tr[start:end], quantile_80_psnr_tr[start:end], color='blue', alpha=0.2)
+        plt.fill_between(epoch_evol, quantile_20_psnr_val[start:end], quantile_80_psnr_val[start:end], color='orange', alpha=0.2)
+        plt.xlabel('Epoch')
+        plt.ylabel('PSNR')
+        plt.legend()
+        
         # Plot ssim evolution
-        ax[1][1].plot(epoch_evol, mean_ssim_tr[start:end], label='Train', color='blue')
-        ax[1][1].plot(epoch_evol, mean_ssim_val[start:end], label='Val', color='orange')
-        ax[1][1].plot(epoch_evol, quantile_20_ssim_tr[start:end], color='blue', linestyle='dotted')
-        ax[1][1].plot(epoch_evol, quantile_80_ssim_tr[start:end], color='blue', linestyle='dotted')
-        ax[1][1].plot(epoch_evol, quantile_20_ssim_val[start:end], color='orange', linestyle='dotted')
-        ax[1][1].plot(epoch_evol, quantile_80_ssim_val[start:end], color='orange', linestyle='dotted')
-        ax[1][1].legend()
-        ax[1][1].set_xlabel('Epoch')
-        ax[1][1].set_ylabel('SSIM')
-
+        plt.subplot(2, 2, 4)
+        sns.lineplot(x=epoch_evol, y=mean_ssim_tr[start:end], label='Train', color='blue')
+        sns.lineplot(x=epoch_evol, y=mean_ssim_val[start:end], label='Val', color='orange')
+        plt.fill_between(epoch_evol, quantile_20_ssim_tr[start:end], quantile_80_ssim_tr[start:end], color='blue', alpha=0.2)
+        plt.fill_between(epoch_evol, quantile_20_ssim_val[start:end], quantile_80_ssim_val[start:end], color='orange', alpha=0.2)
+        plt.xlabel('Epoch')
+        plt.ylabel('SSIM')
+        plt.legend()
+        
+        plt.tight_layout()
         plt.show()

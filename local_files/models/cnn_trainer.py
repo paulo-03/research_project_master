@@ -73,9 +73,9 @@ class CnnTrainer(CNN):
                 f"SSIM={np.mean(train_ssim):.2e}\n"
     
                 "Validation average metrics:\n"
-                f"\tloss (MSE)={np.mean(train_loss):.2e}, "
-                f"PSNR={np.mean(train_psnr):.2e},"
-                f"SSIM={np.mean(train_ssim):.2e}\n"
+                f"\tloss (MSE)={np.mean(val_loss):.2e}, "
+                f"PSNR={np.mean(val_psnr):.2e},"
+                f"SSIM={np.mean(val_ssim):.2e}\n"
 
                 f"learning rate={np.mean(lrs):.2e}"
             )
@@ -214,7 +214,7 @@ class CnnTrainer(CNN):
         train_dataset, val_dataset = random_split(dataset, lengths=[self.train_set_size, self.val_set_size])
 
         # Create train and validation Dataloader
-        train_loader = DataLoader(train_dataset, batch_size=self.batcxh_size)
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size)
         val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
 
         return train_loader, val_loader
