@@ -10,7 +10,7 @@ import numpy as np
 from datetime import datetime
 os.chdir("models")
 from cnn_trainer import CnnTrainer
-from noises import gaussian
+from noises import gaussian, pixel_intensity_adaptive
 os.chdir("../")
 
 
