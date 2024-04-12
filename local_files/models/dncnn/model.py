@@ -7,7 +7,7 @@ import torch.nn as nn
 
 
 class DnCNN(nn.Module):
-    def __init__(self, in_nc=1, out_nc=1, nc=1, hidden_nc=17, bias=True):
+    def __init__(self, in_nc=1, out_nc=1, nc=64, hidden_nc=17, bias=True):
         """
         in_nc: channel number of input
         out_nc: channel number of output

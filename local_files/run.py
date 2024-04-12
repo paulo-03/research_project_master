@@ -8,10 +8,8 @@ import torch
 import numpy as np
 
 from datetime import datetime
-os.chdir("models")
-from cnn_trainer import CnnTrainer
-from noises import gaussian, pixel_intensity_adaptive
-os.chdir("../")
+from models.cnn_trainer import CnnTrainer
+from models.noises import gaussian, pixel_intensity_adaptive
 
 
 def training_denoiser(model_name: str,
@@ -44,7 +42,8 @@ def training_denoiser(model_name: str,
     model_saving_root_folder = "/".join([model_saving_root_folder, model_name.lower()])
     # Use time stamp to give a unique folder name to the training
     date_str = str(datetime.now()).replace(':', 'h', 1).replace(':', 'm', 1).replace('.', 's', 1)[:-6]
-    model_saving_folder = "/".join([model_saving_root_folder, model_name.lower()])
+    model_saving_folder = "/".join([model_saving_root_folder, date_str])
+    print(model_saving_folder)
     # Make directory to store the model checkpoints
     os.makedirs(model_saving_folder)
 
@@ -77,19 +76,19 @@ def training_denoiser(model_name: str,
         cnn.restore_model(model_path=keep_training_model)
 
     # Start training
-    cnn.fit()
+    cnn.fit(plot=False)
 
 
 if __name__ == "__main__":
     training_denoiser(model_name='DnCNN',
-                      num_epochs=15,
-                      batch_size=500,
-                      add_noise=lambda x: gaussian(x, var=10),
+                      num_epochs=100,
+                      batch_size=300,
+                      add_noise=lambda x: gaussian(x, var=20),
                       device='cuda',
                       seed=42,
                       val_size=0.2,
-                      learning_rate=1e-3,
-                      weight_decay=1e-2,
+                      learning_rate=1e-2,
+                      weight_decay=1e-3,
                       training_folder='data/train/ct_images',
                       model_saving_root_folder='models',
                       keep_training_model=None)

@@ -11,7 +11,7 @@ from torchvision import transforms
 from PIL import Image
 from torch.utils.data import TensorDataset, DataLoader
 
-from dncnn.model import DnCNN
+from models.dncnn.model import DnCNN
 
 
 class CNN(ABC):
@@ -83,6 +83,7 @@ class CNN(ABC):
 
         return predictions
 
+    
     def restore_model(self, model_path: str) -> None:
         """Allows to restore model state at a specific saved epoch"""
         # Retrieve model saving
@@ -98,9 +99,6 @@ class CNN(ABC):
         # Reload all model information
         self.model.load_state_dict(model_save['model_state_dict'])
         self.model = self.model.to(torch.device(self.device))  # ensure model is on correct device
-        self.optimizer.load_state_dict(model_save['optimizer_state_dict'])
-        self.criterion = model_save['criterion']
-        self.schedular.load_state_dict(model_save['schedular_state_dict'])
         # Retrieve training history
         self.train_loss_history = model_save['train_loss_history']
         self.train_mse_history = model_save['train_mse_history']

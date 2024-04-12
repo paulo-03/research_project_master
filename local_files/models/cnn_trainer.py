@@ -7,13 +7,15 @@ from os import path, listdir
 import numpy as np
 import torch
 import torch.nn as nn
+
 from tqdm import tqdm
-from dataset import DeadLeaves
 from torch.utils.data import DataLoader, random_split
-from performance_metrics import get_metrics
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
-from cnn import CNN
+from models.cnn import CNN
+from models.dataset import DeadLeaves
+from models.performance_metrics import get_metrics
+
 
 
 class CnnTrainer(CNN):
@@ -175,6 +177,16 @@ class CnnTrainer(CNN):
 
         return val_loss_history, val_mse_history, val_psnr_history, val_ssim_history
 
+    def restore_model(self, model_path: str) -> None:
+        """Allows to restore model state at a specific saved epoch"""
+        super().restore_model(model_path)
+        # Retrieve model saving
+        model_save = torch.load(model_path, map_location=torch.device(self.device))
+        self.optimizer.load_state_dict(model_save['optimizer_state_dict'])
+        self.criterion = model_save['criterion']
+        self.schedular.load_state_dict(model_save['schedular_state_dict'])
+
+
     def _save_model(self):
         """Save important variable used by the model"""
         state = {
@@ -218,5 +230,3 @@ class CnnTrainer(CNN):
         val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
 
         return train_loader, val_loader
-
-# Add noise in the CT trainer class.
