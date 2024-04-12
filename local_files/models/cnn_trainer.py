@@ -55,23 +55,29 @@ class CnnTrainer(CNN):
     def fit(self, plot: bool = False) -> None:
         """Compute the training of the model"""
 
+        print(f"Start Training {self.model_name} model :")
+
         # Start training
         for epoch in range(self.cur_epoch + 1, self.num_epochs + 1):
 
-            print(f"Start Training Epoch {epoch}/{self.num_epochs}...")
+            print(f"Epoch {epoch}/{self.num_epochs}...")
             train_loss, train_mse, train_psnr, train_ssim, lrs = self._train_epoch()
             val_loss, val_mse, val_psnr, val_ssim = self._validate()
 
             self.cur_epoch += 1  # increment the current epoch counter
 
             print(
-                f"- Average metrics: \n"
-                f"\t- train loss={np.mean(train_loss):.2e}, "
-                f"train mse={np.mean(train_mse):.2e}, "
-                f"learning rate={np.mean(lrs)} \n"
-                f"\t- val loss={np.mean(val_loss):.2e}, "
-                f"val mse={np.mean(val_mse):.2e} \n"
-                f"Finish Training Epoch {epoch} !\n"
+                "Train average metrics: \n"
+                f"\tloss (MSE)={np.mean(train_loss):.2e}, "
+                f"PSNR={np.mean(train_psnr):.2e},"
+                f"SSIM={np.mean(train_ssim):.2e}\n"
+    
+                "Validation average metrics:\n"
+                f"\tloss (MSE)={np.mean(train_loss):.2e}, "
+                f"PSNR={np.mean(train_psnr):.2e},"
+                f"SSIM={np.mean(train_ssim):.2e}\n"
+
+                f"learning rate={np.mean(lrs):.2e}"
             )
 
             # Store all metrics in array, to plot them at the end of training
@@ -85,11 +91,13 @@ class CnnTrainer(CNN):
             self.val_ssim_history.append(val_ssim)
             self.lr_history.append(lrs)
 
-            # Save the model
-            if self.model_saving_path is not None:
+            # Save the model only for pair epoch to limit storage issues
+            if self.model_saving_path is not None and self.cur_epoch % 2 == 0:
                 self._save_model()
 
-        # Plot training curves TODO: code function to plot history metric after the all training
+        print(f"Finish Training {self.model_name} model !")
+
+        # Plot training curves
         if plot:
             self.print_training_stats()
 
@@ -175,6 +183,8 @@ class CnnTrainer(CNN):
             'val_set_size': self.val_set_size,
             'cur_epoch': self.cur_epoch,
             'batch_size': self.batch_size,
+            'training_batch_number': self.training_batch_number,
+            'val_batch_number': self.val_batch_number,
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
             'criterion': self.criterion,
@@ -187,9 +197,7 @@ class CnnTrainer(CNN):
             'val_mse_history': self.val_mse_history,
             'val_psnr_history': self.val_psnr_history,
             'val_ssim_history': self.val_ssim_history,
-            'lr_history': self.lr_history,
-            'training_batch_number': self.training_batch_number,
-            'val_batch_number': self.val_batch_number
+            'lr_history': self.lr_history
         }
 
         torch.save(state, path.join(self.model_saving_path, f'training_save_epoch_{self.cur_epoch}.tar'))
@@ -210,6 +218,5 @@ class CnnTrainer(CNN):
         val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
 
         return train_loader, val_loader
-
 
 # Add noise in the CT trainer class.

@@ -22,6 +22,8 @@ class CNN(ABC):
         self.val_set_size = 0
         self.cur_epoch = 0
         self.batch_size = 0
+        self.training_batch_number = 0
+        self.val_batch_number = 0
         self.optimizer = None
         self.criterion = None
         self.schedular = None

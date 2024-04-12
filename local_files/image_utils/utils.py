@@ -336,7 +336,7 @@ class GroupReal(GroupImageCT):
             self._noise_plot(intensities=intensities, mean_values=mean_values, q2_values=q2_values, q8_values=q8_values,
                              slope=slope, intercept=intercept)
 
-        return var_dict_mean, var_dict_q2, var_dict_q8, noise_density_distribution, slope
+        return [var_dict_mean, var_dict_q2, var_dict_q8], noise_density_distribution, slope
 
     def _noise_analysis_current_img(self, full_img: RealImageCT, quarter_img: RealImageCT,
                                     squared_diff_dict: dict, noised_values_dict: dict) -> (dict, dict):
