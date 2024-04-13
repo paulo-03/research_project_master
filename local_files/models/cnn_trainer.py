@@ -71,12 +71,12 @@ class CnnTrainer(CNN):
             print(
                 "Train average metrics: \n"
                 f"\tloss (MSE)={np.mean(train_loss):.2e}, "
-                f"PSNR={np.mean(train_psnr):.2e},"
+                f"PSNR={np.mean(train_psnr):.2e}, "
                 f"SSIM={np.mean(train_ssim):.2e}\n"
     
                 "Validation average metrics:\n"
                 f"\tloss (MSE)={np.mean(val_loss):.2e}, "
-                f"PSNR={np.mean(val_psnr):.2e},"
+                f"PSNR={np.mean(val_psnr):.2e}, "
                 f"SSIM={np.mean(val_ssim):.2e}\n"
 
                 f"learning rate={np.mean(lrs):.2e}"
@@ -93,8 +93,9 @@ class CnnTrainer(CNN):
             self.val_ssim_history.append(val_ssim)
             self.lr_history.append(lrs)
 
-            # Save the model only for pair epoch to limit storage issues
-            if self.model_saving_path is not None and self.cur_epoch % 2 == 0:
+            # Save the model only approximately ten times during the whole training
+            multiple = int(self.num_epochs / 10)
+            if self.model_saving_path is not None and self.cur_epoch % multiple == 0:
                 self._save_model()
 
         print(f"Finish Training {self.model_name} model !")
@@ -177,6 +178,7 @@ class CnnTrainer(CNN):
 
         return val_loss_history, val_mse_history, val_psnr_history, val_ssim_history
 
+
     def restore_model(self, model_path: str) -> None:
         """Allows to restore model state at a specific saved epoch"""
         super().restore_model(model_path)
@@ -212,7 +214,7 @@ class CnnTrainer(CNN):
             'lr_history': self.lr_history
         }
 
-        torch.save(state, path.join(self.model_saving_path, f'training_save_epoch_{self.cur_epoch}.tar'))
+        torch.save(state, path.join(self.model_saving_path, f'training_save_epoch_{self.cur_epoch:02}.tar'))
 
     def _get_data_loader_from_disk(self, images_folder_path: str, add_noise) -> (DataLoader, DataLoader):
         """Helper function to load data into train and validation Dataloadxer directly from the disk."""

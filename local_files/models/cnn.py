@@ -9,7 +9,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from torchvision import transforms
 from PIL import Image
-from torch.utils.data import TensorDataset, DataLoader
+from models.dataset import DeadLeaves
+from models.performance_metrics import get_metrics
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from models.dncnn.model import DnCNN
 
@@ -52,7 +55,7 @@ class CNN(ABC):
         self.lr_history = []
 
     @torch.no_grad
-    def predict(self, images: list[Image]) -> list[Image]:
+    def test(self, test_ct_path: str, add_noise) -> tuple:
         """Function to predict output from a given input
 
         :param images: The images for which to do the prediction
@@ -61,27 +64,86 @@ class CNN(ABC):
         # Set the model in evaluation mode (turn-off the auto gradient computation, ...)
         self.model.eval()
 
-        # Convert PIL image to Tensor
-        to_tensor = transforms.ToTensor()
-        images = torch.stack([to_tensor(img) for img in images])
-
         # Create DataLoader with all images to predict
-        images_dataset = TensorDataset(images)
-        images_dataloader = DataLoader(images_dataset, self.batch_size)
+        dataset = DeadLeaves(test_ct_path, add_noise)
+        dataloader = DataLoader(dataset, self.batch_size)
+        batch_number = int(len(dataset) / self.batch_size)
 
         # Create transformer to transform prediction to pil image
         to_pil_img = transforms.ToPILImage()
 
-        predictions = []
-        for img in images_dataloader:
-            # Move the data_stats_analysis to the device
-            img = img[0].to(self.device)
+        # Initiate dictionnary to store metrics performance within batches
+        perf = {
+            'mse': {'init': [],
+                    'final': []},
+            'psnr': {'init': [],
+                    'final': []},
+            'ssim': {'init': [],
+                    'final': []}
+        }
+        
+        # Initiate list to store all images to have a look at the noise reduction made by the model
+        data_img = []
+        target_img = []
+        prediction_img = []
+        for batch_idx, (data, target) in tqdm(enumerate(dataloader), total=batch_number, desc="Progress of predictions"):
+            # Move the data to the device
+            data, target = data.to(self.device), target.to(self.device)
             # Compute model output
-            prediction = self.model(img)
-            # Store the prediction
-            predictions.extend([to_pil_img(numpy_img) for numpy_img in prediction.cpu().detach()])
+            prediction = self.model(data)
+            # Calculate batch metrics
+            mse_init, psnr_init, ssim_init = get_metrics(data, target, self.device)
+            mse_final, psnr_final, ssim_final = get_metrics(prediction, target, self.device)
 
-        return predictions
+            # Store the performance metrics
+            perf['mse']['init'].append(mse_init)
+            perf['psnr']['init'].append(psnr_init)
+            perf['ssim']['init'].append(ssim_init)
+            perf['mse']['final'].append(mse_final)
+            perf['psnr']['final'].append(psnr_final)
+            perf['ssim']['final'].append(ssim_final)
+            
+            # Store the data, target and prediction in numpy array
+            data_img.extend([np.squeeze(numpy_img) for numpy_img in data.cpu().detach().numpy()])
+            target_img.extend([np.squeeze(numpy_img) for numpy_img in target.cpu().detach().numpy()])
+            prediction_img.extend([np.squeeze(numpy_img) for numpy_img in prediction.cpu().detach().numpy()])
+
+        return perf, data_img, target_img, prediction_img
+
+
+    # Initiate array to store metrics evolution within batches
+        train_loss_history = []
+        train_mse_history = []
+        train_psnr_history = []
+        train_ssim_history = []
+        lr_history = []
+
+        for batch_idx, (data, target) in tqdm(enumerate(self.training_loader), total=self.training_batch_number,
+                                              desc=f"Progress of training epoch {self.cur_epoch + 1}"):
+            # Move the data to the device
+            data, target = data.to(self.device), target.to(self.device)
+            # Zero the gradients
+            self.optimizer.zero_grad()
+            # Compute model output
+            output = self.model(data)
+            # Compute loss
+            loss = self.criterion(output, target)
+            # Backpropagation loss
+            loss.backward()
+            # Perform an optimizer step
+            self.optimizer.step()
+            # Perform a learning rate scheduler step
+            self.schedular.step()
+
+            # Calculate batch metrics TODO: Find a way to efficiently compute ssim
+            mse, pnsr, ssim = get_metrics(output, target, self.device)
+
+            # Store metrics
+            train_loss_history.append(loss.item())
+            train_mse_history.append(mse)
+            train_psnr_history.append(pnsr)
+            train_ssim_history.append(ssim)
+            lr_history.append(self.schedular.get_last_lr()[0])
 
     
     def restore_model(self, model_path: str) -> None:
@@ -159,8 +221,10 @@ class CNN(ABC):
         plt.subplot(2, 2, 1)
         sns.lineplot(x=epoch_evol, y=mean_loss_tr[start:end], label='Train', color='blue')
         sns.lineplot(x=epoch_evol, y=mean_loss_val[start:end], label='Val', color='orange')
-        plt.fill_between(epoch_evol, quantile_20_loss_tr[start:end], quantile_80_loss_tr[start:end], color='blue', alpha=0.2)
-        plt.fill_between(epoch_evol, quantile_20_loss_val[start:end], quantile_80_loss_val[start:end], color='orange', alpha=0.2)
+        plt.fill_between(epoch_evol, quantile_20_loss_tr[start:end], quantile_80_loss_tr[start:end], 
+                         color='blue', alpha=0.2)
+        plt.fill_between(epoch_evol, quantile_20_loss_val[start:end], quantile_80_loss_val[start:end], 
+                         color='orange', alpha=0.2)
         plt.xlabel('Epoch')
         plt.ylabel('MSE-Loss')
         plt.legend()
@@ -175,8 +239,10 @@ class CNN(ABC):
         plt.subplot(2, 2, 3)
         sns.lineplot(x=epoch_evol, y=mean_psnr_tr[start:end], label='Train', color='blue')
         sns.lineplot(x=epoch_evol, y=mean_psnr_val[start:end], label='Val', color='orange')
-        plt.fill_between(epoch_evol, quantile_20_psnr_tr[start:end], quantile_80_psnr_tr[start:end], color='blue', alpha=0.2)
-        plt.fill_between(epoch_evol, quantile_20_psnr_val[start:end], quantile_80_psnr_val[start:end], color='orange', alpha=0.2)
+        plt.fill_between(epoch_evol, quantile_20_psnr_tr[start:end], quantile_80_psnr_tr[start:end], 
+                         color='blue', alpha=0.2)
+        plt.fill_between(epoch_evol, quantile_20_psnr_val[start:end], quantile_80_psnr_val[start:end], 
+                         color='orange', alpha=0.2)
         plt.xlabel('Epoch')
         plt.ylabel('PSNR')
         plt.legend()
@@ -185,8 +251,10 @@ class CNN(ABC):
         plt.subplot(2, 2, 4)
         sns.lineplot(x=epoch_evol, y=mean_ssim_tr[start:end], label='Train', color='blue')
         sns.lineplot(x=epoch_evol, y=mean_ssim_val[start:end], label='Val', color='orange')
-        plt.fill_between(epoch_evol, quantile_20_ssim_tr[start:end], quantile_80_ssim_tr[start:end], color='blue', alpha=0.2)
-        plt.fill_between(epoch_evol, quantile_20_ssim_val[start:end], quantile_80_ssim_val[start:end], color='orange', alpha=0.2)
+        plt.fill_between(epoch_evol, quantile_20_ssim_tr[start:end], quantile_80_ssim_tr[start:end], 
+                         color='blue', alpha=0.2)
+        plt.fill_between(epoch_evol, quantile_20_ssim_val[start:end], quantile_80_ssim_val[start:end], 
+                         color='orange', alpha=0.2)
         plt.xlabel('Epoch')
         plt.ylabel('SSIM')
         plt.legend()

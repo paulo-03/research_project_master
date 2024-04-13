@@ -30,3 +30,16 @@ class DeadLeaves(Dataset):
         target = self.to_float(ideal)
 
         return data, target
+
+
+class PredictDataSet(Dataset):
+    """Class representing custom Dataset"""
+    def __init__(self, images: torch.tensor):
+        self.images = images
+
+    def __len__(self):
+        return self.images.size(0)
+
+    def __getitem__(self, item: int):
+        return self.images[item]
+        

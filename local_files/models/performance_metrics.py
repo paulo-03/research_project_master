@@ -5,7 +5,6 @@ Script for computing all our  performance metrics.
 import torch
 from torchmetrics.image import StructuralSimilarityIndexMeasure
 
-
 def get_metrics(predictions: torch.Tensor, targets: torch.Tensor, device: str):
     """Return performance metrics to quantify our models abilities to denoise CT Images"""
     # Compute metrics of all element in batch
@@ -33,5 +32,6 @@ def _psnr(mse, max_pixel=255):
 
 def _ssim(predictions: torch.Tensor, targets: torch.Tensor, device: str):
     """Compute Structural Similarity Index Measure (SSIM) of the predictions"""
-    ssim = StructuralSimilarityIndexMeasure(data_range=255).to(device)
-    return ssim(predictions, targets).item()
+    ssim_calculator = StructuralSimilarityIndexMeasure(data_range=255).to('cuda')
+    ssim = ssim_calculator(predictions, targets).item()
+    return ssim

@@ -81,8 +81,8 @@ def training_denoiser(model_name: str,
 
 if __name__ == "__main__":
     training_denoiser(model_name='DnCNN',
-                      num_epochs=100,
-                      batch_size=300,
+                      num_epochs=50,
+                      batch_size=15,
                       add_noise=lambda x: gaussian(x, var=20),
                       device='cuda',
                       seed=42,

@@ -20,18 +20,18 @@ def pixel_intensity_adaptive(image: torch.tensor, var_dict: dict):
     # Get image size
     height, width = image.shape[-2], image.shape[-1]
     # Create a tensor to store the noise
-    noise_tensor = torch.zeros_like(image)
+    noise_tensor = torch.zeros_like(image, dtype=torch.float)
 
     # Iterate over each pixel intensity value
     for intensity, var in var_dict.items():
         # Compute the standard deviation
         std = torch.sqrt(torch.tensor(var))
         # Generate noise with variance depending on the pixel intensity
-        noise = torch.randn(height, width) * std
+        noise = (torch.randn(height, width) * std)
         # Mask for pixels with the current intensity value
-        mask = image == intensity
+        mask = image == intensity        
         # Add noise to the corresponding pixels
-        noise_tensor[mask] = noise[mask]
+        noise_tensor[mask] = noise[mask.squeeze()]
 
     # Add the noise tensor to the image tensor
     noisy_image = image + noise_tensor
