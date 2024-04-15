@@ -8,8 +8,11 @@ from PIL import Image, ImageDraw
 from image_utils.utils import GroupSynth, SynthImageCT
 
 
-def dead_leaves_generator(number: int, dl_args):
+def dead_leaves_generator(infos: tuple):
     """Generator of dead leaves images following the dead leaves (dl) arguments."""
+    # Retrieve the information give to the function
+    number, dl_args = infos
+    # Start computing the dl images
     dl_imgs = []
     for _ in tqdm_notebook(range(number)):
         dl_imgs.append(_dead_leaves(**dl_args))
@@ -17,11 +20,11 @@ def dead_leaves_generator(number: int, dl_args):
     return GroupSynth(dl_imgs, dl_args['r_min'], dl_args['r_max'], dl_args['alpha'])
 
 
-def _dead_leaves(alpha, r_min, r_max, color_distribution, width, height, max_object):
+def _dead_leaves(alpha, r_min, r_max, color_distribution, width, height, max_objects):
     """Function compute one dead leaves image."""
-    # Start by up-scaling the size of image
-    width_up = width * 5
-    height_up = height * 5
+    # Start by up-scaling the size of image (then we resize it to keep a blurry, then more real image)
+    width_up = width * 4
+    height_up = height * 4
 
     # Generate the empty/background image
     image = Image.new("L", size=(width_up, height_up), color=0)
@@ -30,32 +33,33 @@ def _dead_leaves(alpha, r_min, r_max, color_distribution, width, height, max_obj
     # Initiate an array that will track where circle have been drawn or not and the variable that will stop generation
     drawn_tracker = Image.new("1", size=(width_up, height_up), color=0)
     track = ImageDraw.Draw(drawn_tracker)
-    fully_drawn: bool = False
+    ratio_drawn = 0
 
     # Also initiate some interesting information
     disk_number = 0
     radius_mean_size = 0
-    stop = 0
+    objects = 0
 
-    while not fully_drawn and stop <= max_object:
+    while ratio_drawn < 0.998 and objects <= max_objects:
         # Compute the new parameters of the new object that will be drawn
         radius = _object_radius(r_min, r_max, alpha)
         x, y = _object_position(width_up, height_up)
         color = _object_color(color_distribution)
 
-        # Draw the new object on the image
+        # Draw the new object (circle here from morphological analysis) on the image
         xy = (x - radius, y - radius, x + radius, y + radius)
         draw.ellipse(xy=xy,
                      fill=color)
+
         # Update  the draw tracker and other metrics
-        fully_drawn = _is_fully_drawn(drawn_tracker, track, xy)
+        ratio_drawn = _ratio_drawn(drawn_tracker, track, xy)
         disk_number += 1
         radius_mean_size += radius
-        stop += 1
+        objects += 1
 
     radius_mean_size /= disk_number
 
-    return SynthImageCT(image.resize((width, height)), radius_mean_size, disk_number)
+    return SynthImageCT(image.resize((width, height)), radius_mean_size, disk_number, ratio_drawn)
 
 
 def _object_radius(r_min, r_max, alpha) -> int:
@@ -84,11 +88,9 @@ def _object_color(color_distribution) -> int:
     return int(np.random.choice(color_list, p=color_distribution))
 
 
-def _is_fully_drawn(drawn_tracker, tracker, xy):
+def _ratio_drawn(drawn_tracker, tracker, xy):
     """Tracker to know where an object has already been added, then we know when to stop adding objects."""
     # Update potential 0 pixels into ones pixels, telling the tracker that an object have been drawn
     tracker.ellipse(xy=xy, fill=1)
     # Then we check if all values are set to 1, meaning to True
-    if np.array(drawn_tracker, dtype=bool).all():
-        return True
-    return False
+    return np.array(drawn_tracker, dtype=bool).sum()/(512*4*512*4)

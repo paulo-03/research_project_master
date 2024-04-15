@@ -33,10 +33,11 @@ class RealImageCT(ImageCT):
 
 
 class SynthImageCT(ImageCT):
-    def __init__(self, leave_img, r_mean, disk_number):
+    def __init__(self, leave_img, r_mean, disk_number, ratio_drawn):
         super().__init__(leave_img)
         self.r_mean = r_mean
         self.disk_number = disk_number
+        self.ratio_drawn = ratio_drawn
 
 
 class GroupImageCT:

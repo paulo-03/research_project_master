@@ -65,3 +65,10 @@ def _defining_img_param(path):
     patient = params[4]
 
     return cat, img_type, dose, patient
+
+
+def store_dl_disk(path, dl_imgs):
+    for idx, dl in tqdm_notebook(enumerate(dl_imgs), total=len(dl_imgs),
+                                 desc="Writing generated Dead Leaves into disk"):
+        img = dl.pil
+        img.save(path + f"image_{idx:05}.png")
