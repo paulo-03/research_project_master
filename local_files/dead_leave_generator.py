@@ -23,8 +23,8 @@ def dead_leaves_generator(infos: tuple):
 def _dead_leaves(alpha, r_min, r_max, color_distribution, width, height, max_objects):
     """Function compute one dead leaves image."""
     # Start by up-scaling the size of image (then we resize it to keep a blurry, then more real image)
-    width_up = width * 4
-    height_up = height * 4
+    width_up = width * 3
+    height_up = height * 3
 
     # Generate the empty/background image
     image = Image.new("L", size=(width_up, height_up), color=0)
@@ -93,4 +93,4 @@ def _ratio_drawn(drawn_tracker, tracker, xy):
     # Update potential 0 pixels into ones pixels, telling the tracker that an object have been drawn
     tracker.ellipse(xy=xy, fill=1)
     # Then we check if all values are set to 1, meaning to True
-    return np.array(drawn_tracker, dtype=bool).sum()/(512*4*512*4)
+    return np.array(drawn_tracker, dtype=bool).sum()/(512*3*512*3)

@@ -181,7 +181,7 @@ class GroupImageCT:
 
         if plot:
             plt.figure(figsize=(12, 6))
-            plt.imshow(np.log(global_fourier))
+            plt.imshow(np.log(global_fourier), cmap='grey')
             plt.title('Mean (Log-values) Fourier Transform of CT Image sample')
             plt.axis('off')
             plt.show()
