@@ -24,7 +24,7 @@ def poisson_gaussian(image: torch.tensor, var: int = 10, alpha: float = 0.1) -> 
     # Compute the Gaussian noise
     gaussian_noise = torch.randn(height, width) * std
     # Compute the Poisson noise
-    rates = image * alpha  # rate parameter between 0 and 5
+    rates = image * alpha
     poisson_noise = torch.poisson(rates)
     # Compute the overall noise and add it to the initial image
     noisy_image = image + poisson_noise + gaussian_noise
