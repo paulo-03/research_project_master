@@ -7,3 +7,5 @@
 local_files/data_stats_analysis/train
 local_files/data/*
 runai
+run_ct.py
+run_dl.py
