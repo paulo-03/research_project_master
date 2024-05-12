@@ -7,6 +7,8 @@ from tqdm.notebook import tqdm_notebook
 from PIL import Image, ImageDraw
 from image_utils.utils import GroupSynth, SynthImageCT
 
+np.random.seed(42)
+
 
 def dead_leaves_generator(infos: tuple):
     """Generator of dead leaves images following the dead leaves (dl) arguments."""
@@ -20,7 +22,7 @@ def dead_leaves_generator(infos: tuple):
     return GroupSynth(dl_imgs, dl_args['r_min'], dl_args['r_max'], dl_args['alpha'])
 
 
-def _dead_leaves(alpha, r_min, r_max, color_distribution, width, height, max_objects, noise_var=600, n=2):
+def _dead_leaves(alpha, r_min, r_max, color_distribution, width, height, max_objects, noise_type, noise_var=600, n=2):
     """Function compute one dead leaves image."""
     # Start by up-scaling the size of image (then we resize it to keep a blurry, then more real image)
     width_up = width * n
@@ -60,6 +62,7 @@ def _dead_leaves(alpha, r_min, r_max, color_distribution, width, height, max_obj
         # Add a brownian noise for texture at each disk, or uncomment below for a general brownian noise
         # brown_noise_array = _brownian_noise_array_per_disk(brown_noise_array=brown_noise_array,
         #                                                    xy=xy,
+        #                                                    noise_type=noise_type,
         #                                                    noise_var=noise_var,
         #                                                    circle_tracker=circle_tracker,
         #                                                    bn_track=bn_track,
@@ -74,7 +77,9 @@ def _dead_leaves(alpha, r_min, r_max, color_distribution, width, height, max_obj
 
     # Add a brownian noise general or per disk and gradient layer to the overall synthetic image, just uncomment
     # what you desire
-    brown_noise_array = _brownian_noise_array_general(size=brown_noise_array.shape, noise_var=noise_var)
+    brown_noise_array = _brownian_noise_array_general(size=brown_noise_array.shape,
+                                                      noise_type=noise_type,
+                                                      noise_var=noise_var)
     image = _add_brownian_noise(image=image, brown_noise_array=brown_noise_array)
 
     # image = _gradient_layer(image=image)
@@ -135,16 +140,17 @@ def _add_brownian_noise(image: Image, brown_noise_array: np.ndarray) -> Image:
     return image_noised
 
 
-def _brownian_noise_array_general(size: tuple, noise_var: int) -> Image:
+def _brownian_noise_array_general(size: tuple, noise_type: str, noise_var: int) -> Image:
     """Add one general brownian noise to the dead leave image"""
     brownian_noise = _create_brownian_noise(size=size,
+                                            noise_type=noise_type,
                                             noise_var=noise_var)
 
     return brownian_noise
 
 
-def _brownian_noise_array_per_disk(brown_noise_array: np.ndarray, xy: tuple, noise_var: int, circle_tracker: Image,
-                                   bn_track: ImageDraw, brown_noise_track: int) -> Image:
+def _brownian_noise_array_per_disk(brown_noise_array: np.ndarray, xy: tuple, noise_type: str, noise_var: int,
+                                   circle_tracker: Image, bn_track: ImageDraw, brown_noise_track: int) -> Image:
     """Add the brownian noise to the current added object in the array to track it. Decided to do this way for
     computational optimization."""
     # Use PIL image to retrieve the position of the circle just added
@@ -154,6 +160,7 @@ def _brownian_noise_array_per_disk(brown_noise_array: np.ndarray, xy: tuple, noi
 
     # Compute the brownian noise to add into image
     brownian_noise = _brownian_noise(size=brown_noise_array.shape,
+                                     noise_type=noise_type,
                                      noise_var=noise_var,
                                      mask=mask)
 
@@ -163,10 +170,11 @@ def _brownian_noise_array_per_disk(brown_noise_array: np.ndarray, xy: tuple, noi
     return brown_noise_array
 
 
-def _brownian_noise(size: tuple, noise_var: int, mask: np.ndarray) -> np.ndarray:
+def _brownian_noise(size: tuple, noise_type: str, noise_var: int, mask: np.ndarray) -> np.ndarray:
     """Create an array of image size with noise only where the disk has been added."""
     # First compute the big brownian noise of image size
     brownian_noise = _create_brownian_noise(size=size,
+                                            noise_type=noise_type,
                                             noise_var=noise_var)
     # Then only keep the region of interest (roi) where the disk has been added
     brownian_noise[~mask] = 0
@@ -174,7 +182,7 @@ def _brownian_noise(size: tuple, noise_var: int, mask: np.ndarray) -> np.ndarray
     return brownian_noise
 
 
-def _create_brownian_noise(size: tuple, noise_var: int) -> np.ndarray:
+def _create_brownian_noise(size: tuple, noise_type: str, noise_var: int) -> np.ndarray:
     """Create a brownian noise to add texture to the synthetic image.
         reference: https://stackoverflow.com/questions/70085015/how-to-generate-2d-colored-noise"""
     # Generate white noise image
@@ -185,6 +193,13 @@ def _create_brownian_noise(size: tuple, noise_var: int) -> np.ndarray:
     _x, _y = np.mgrid[0:ft_arr.shape[0], 0:ft_arr.shape[1]]
     f = np.hypot(_x - ft_arr.shape[0] / 2, _y - ft_arr.shape[1] / 2)
     f[f == 0] = 1  # just to delete the 0 in the center
+    # Select the noise color
+    if noise_type == 'brown':
+        f = f ** 2
+    elif noise_type == 'pink':
+        pass
+    else:
+        raise ValueError(f'Your noise type "{noise_type}" is not supported. Please choose between "brown" and "pink".')
     brownian_ft_arr = np.nan_to_num(ft_arr / f, nan=0, posinf=0, neginf=0)
     # Come back to image level
     brownian_noise = np.fft.ifft2(np.fft.ifftshift(brownian_ft_arr)).real
@@ -221,3 +236,18 @@ def _gradient_layer(image: Image):
     image = Image.fromarray(image_array, mode='L')
 
     return image
+
+
+def visualize_generation(dead_leaves: SynthImageCT, idx: int):
+    """Helper function to visualize the generated image and its used parameters."""
+    print("Radius min: ", dead_leaves.r_min)
+    print("Radius max: ", dead_leaves.r_max)
+    print("Alpha used: ", dead_leaves.alpha)
+    print("Number of images: ", dead_leaves.len)
+    print(f"----------- idx: {idx} -----------")
+    print("Disk number: ", dead_leaves.imgs[idx].disk_number)
+    print("Width: ", dead_leaves.imgs[idx].width)
+    print("Height: ", dead_leaves.imgs[idx].height)
+    print("Radius mean: ", dead_leaves.imgs[idx].r_mean)
+    print(f"Ratio drawn: {dead_leaves.imgs[idx].ratio_drawn*100:.2f}%")
+    return dead_leaves.imgs[idx].pil
