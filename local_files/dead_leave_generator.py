@@ -27,7 +27,7 @@ def _dead_leaves(alpha, r_min, r_max, color_distribution, width, height, max_obj
     height_up = height * n
 
     # Generate the empty/background image
-    image = Image.new("I", size=(width_up, height_up), color=0)
+    image = Image.new("L", size=(width_up, height_up), color=0)
     draw = ImageDraw.Draw(image)
 
     # Initiate an array that will track where circle have been drawn or not and the variable that will stop generation
@@ -39,6 +39,7 @@ def _dead_leaves(alpha, r_min, r_max, color_distribution, width, height, max_obj
     circle_tracker = Image.new("I", size=(width_up, height_up), color=0)
     bn_track = ImageDraw.Draw(circle_tracker)
     brown_noise_track = 1
+    brown_noise_array = np.zeros((width_up, height_up), dtype=np.float64)
 
     # Also initiate some interesting information
     disk_number = 0
@@ -56,14 +57,13 @@ def _dead_leaves(alpha, r_min, r_max, color_distribution, width, height, max_obj
         draw.ellipse(xy=xy,
                      fill=color)
 
-        # Add a brownian noise for texture
-        image = _add_brownian_noise(image=image,
-                                    xy=xy,
-                                    noise_var=noise_var,
-                                    circle_tracker=circle_tracker,
-                                    bn_track=bn_track,
-                                    brown_noise_track=brown_noise_track)
-        draw = ImageDraw.Draw(image)
+        # Add a brownian noise for texture at each disk, or uncomment below for a general brownian noise
+        # brown_noise_array = _brownian_noise_array_per_disk(brown_noise_array=brown_noise_array,
+        #                                                    xy=xy,
+        #                                                    noise_var=noise_var,
+        #                                                    circle_tracker=circle_tracker,
+        #                                                    bn_track=bn_track,
+        #                                                    brown_noise_track=brown_noise_track)
 
         # Update  the draw tracker and other metrics
         ratio_drawn = _ratio_drawn(drawn_tracker, track, xy, n)
@@ -71,6 +71,13 @@ def _dead_leaves(alpha, r_min, r_max, color_distribution, width, height, max_obj
         radius_mean_size += radius
         objects += 1
         brown_noise_track += 1
+
+    # Add a brownian noise general or per disk and gradient layer to the overall synthetic image, just uncomment
+    # what you desire
+    brown_noise_array = _brownian_noise_array_general(size=brown_noise_array.shape, noise_var=noise_var)
+    image = _add_brownian_noise(image=image, brown_noise_array=brown_noise_array)
+
+    # image = _gradient_layer(image=image)
 
     radius_mean_size /= disk_number
 
@@ -111,31 +118,49 @@ def _ratio_drawn(drawn_tracker, tracker, xy, n):
     return np.array(drawn_tracker, dtype=bool).sum() / (512 * n * 512 * n)
 
 
-def _add_brownian_noise(image: Image, xy: tuple, noise_var: int, circle_tracker: Image, bn_track: ImageDraw,
-                        brown_noise_track: int) -> Image:
-    """Add the brownian noise to the current added object."""
-    # Convert PIL image to NumPy array
+def _add_brownian_noise(image: Image, brown_noise_array: np.ndarray) -> Image:
+    """Add the brownian noise that was track during the whole DL generation."""
+    # Convert the PIL into array
     image_array = np.array(image, dtype=np.float64)
 
+    # Add the noise
+    image_array += brown_noise_array
+
+    # Make sure no values exceed 255
+    image_array = np.clip(image_array, 0, 255).astype(np.uint8)
+
+    # Convert NumPy array back to PIL image
+    image_noised = Image.fromarray(image_array, mode='L')
+
+    return image_noised
+
+
+def _brownian_noise_array_general(size: tuple, noise_var: int) -> Image:
+    """Add one general brownian noise to the dead leave image"""
+    brownian_noise = _create_brownian_noise(size=size,
+                                            noise_var=noise_var)
+
+    return brownian_noise
+
+
+def _brownian_noise_array_per_disk(brown_noise_array: np.ndarray, xy: tuple, noise_var: int, circle_tracker: Image,
+                                   bn_track: ImageDraw, brown_noise_track: int) -> Image:
+    """Add the brownian noise to the current added object in the array to track it. Decided to do this way for
+    computational optimization."""
     # Use PIL image to retrieve the position of the circle just added
     bn_track.ellipse(xy=xy,
                      fill=brown_noise_track)
     mask = np.array(circle_tracker) == brown_noise_track
 
     # Compute the brownian noise to add into image
-    brownian_noise = _brownian_noise(size=image_array.shape,
+    brownian_noise = _brownian_noise(size=brown_noise_array.shape,
                                      noise_var=noise_var,
                                      mask=mask)
+
     # Add the noise to the image
-    image_array += brownian_noise
+    brown_noise_array[mask] = brownian_noise[mask]
 
-    # Make sure no values exceed 255
-    image_array = np.clip(image_array, 0, 255).astype(np.uint8)
-
-    # Convert NumPy array back to PIL image
-    image = Image.fromarray(image_array, mode='L')
-
-    return image
+    return brown_noise_array
 
 
 def _brownian_noise(size: tuple, noise_var: int, mask: np.ndarray) -> np.ndarray:
@@ -160,8 +185,39 @@ def _create_brownian_noise(size: tuple, noise_var: int) -> np.ndarray:
     _x, _y = np.mgrid[0:ft_arr.shape[0], 0:ft_arr.shape[1]]
     f = np.hypot(_x - ft_arr.shape[0] / 2, _y - ft_arr.shape[1] / 2)
     f[f == 0] = 1  # just to delete the 0 in the center
-    brownian_ft_arr = np.nan_to_num(ft_arr / f ** 2, nan=0, posinf=0, neginf=0)
+    brownian_ft_arr = np.nan_to_num(ft_arr / f, nan=0, posinf=0, neginf=0)
     # Come back to image level
     brownian_noise = np.fft.ifft2(np.fft.ifftshift(brownian_ft_arr)).real
 
     return brownian_noise
+
+
+def _gradient_layer(image: Image):
+    """Create the gradient layer"""
+    # Retrieve image info
+    image_array = np.array(image, dtype=np.float64)
+    width, height = image.size
+    # Select randomly the gradient pattern
+    is_horizontal = np.random.choice([True, False])
+    is_left_to_right = np.random.choice([True, False])
+    start = np.random.choice(range(-30, -25))
+    stop = np.random.choice(range(25, 30))
+    # Choose if the gradient is horizontal or vertical
+    if is_horizontal:
+        gradient_layer = np.tile(np.linspace(start, stop, width), (height, 1))
+    else:
+        gradient_layer = np.tile(np.linspace(start, stop, width), (height, 1)).T
+    # Define the gradient direction, left to right or inverse
+    if not is_left_to_right:
+        gradient_layer *= -1
+
+    # Add the noise to the image
+    image_array += gradient_layer
+
+    # Make sure no values exceed 255
+    image_array = np.clip(image_array, 0, 255).astype(np.uint8)
+
+    # Convert NumPy array back to PIL image
+    image = Image.fromarray(image_array, mode='L')
+
+    return image
