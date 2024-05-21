@@ -7,13 +7,13 @@ from tqdm.notebook import tqdm_notebook
 from PIL import Image, ImageDraw
 from image_utils.utils import GroupSynth, SynthImageCT
 
-np.random.seed(42)
-
 
 def dead_leaves_generator(infos: tuple):
     """Generator of dead leaves images following the dead leaves (dl) arguments."""
     # Retrieve the information give to the function
-    number, dl_args = infos
+    number, dl_args, seed = infos
+    # Fix the randomness of generation
+    np.random.seed(seed)
     # Start computing the dl images
     dl_imgs = []
     for _ in tqdm_notebook(range(number)):
