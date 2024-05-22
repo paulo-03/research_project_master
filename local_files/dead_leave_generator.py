@@ -22,7 +22,7 @@ def dead_leaves_generator(infos: tuple):
     return GroupSynth(dl_imgs, dl_args['r_min'], dl_args['r_max'], dl_args['alpha'])
 
 
-def _dead_leaves(alpha, r_min, r_max, color_distribution, width, height, max_objects, noise_type, noise_var=600, n=2):
+def _dead_leaves(alpha, r_min, r_max, color_distribution, width, height, max_objects, noise_var=600, n=2):
     """Function compute one dead leaves image."""
     # Start by up-scaling the size of image (then we resize it to keep a blurry, then more real image)
     width_up = width * n
@@ -78,7 +78,6 @@ def _dead_leaves(alpha, r_min, r_max, color_distribution, width, height, max_obj
     # Add a brownian noise general or per disk and gradient layer to the overall synthetic image, just uncomment
     # what you desire
     brown_noise_array = _brownian_noise_array_general(size=brown_noise_array.shape,
-                                                      noise_type=noise_type,
                                                       noise_var=noise_var)
     image = _add_brownian_noise(image=image, brown_noise_array=brown_noise_array)
 
@@ -140,16 +139,15 @@ def _add_brownian_noise(image: Image, brown_noise_array: np.ndarray) -> Image:
     return image_noised
 
 
-def _brownian_noise_array_general(size: tuple, noise_type: str, noise_var: int) -> Image:
+def _brownian_noise_array_general(size: tuple, noise_var: int) -> Image:
     """Add one general brownian noise to the dead leave image"""
     brownian_noise = _create_brownian_noise(size=size,
-                                            noise_type=noise_type,
                                             noise_var=noise_var)
 
     return brownian_noise
 
 
-def _brownian_noise_array_per_disk(brown_noise_array: np.ndarray, xy: tuple, noise_type: str, noise_var: int,
+def _brownian_noise_array_per_disk(brown_noise_array: np.ndarray, xy: tuple, noise_var: int,
                                    circle_tracker: Image, bn_track: ImageDraw, brown_noise_track: int) -> Image:
     """Add the brownian noise to the current added object in the array to track it. Decided to do this way for
     computational optimization."""
@@ -160,7 +158,6 @@ def _brownian_noise_array_per_disk(brown_noise_array: np.ndarray, xy: tuple, noi
 
     # Compute the brownian noise to add into image
     brownian_noise = _brownian_noise(size=brown_noise_array.shape,
-                                     noise_type=noise_type,
                                      noise_var=noise_var,
                                      mask=mask)
 
@@ -170,11 +167,10 @@ def _brownian_noise_array_per_disk(brown_noise_array: np.ndarray, xy: tuple, noi
     return brown_noise_array
 
 
-def _brownian_noise(size: tuple, noise_type: str, noise_var: int, mask: np.ndarray) -> np.ndarray:
+def _brownian_noise(size: tuple, noise_var: int, mask: np.ndarray) -> np.ndarray:
     """Create an array of image size with noise only where the disk has been added."""
     # First compute the big brownian noise of image size
     brownian_noise = _create_brownian_noise(size=size,
-                                            noise_type=noise_type,
                                             noise_var=noise_var)
     # Then only keep the region of interest (roi) where the disk has been added
     brownian_noise[~mask] = 0
@@ -182,29 +178,25 @@ def _brownian_noise(size: tuple, noise_type: str, noise_var: int, mask: np.ndarr
     return brownian_noise
 
 
-def _create_brownian_noise(size: tuple, noise_type: str, noise_var: int) -> np.ndarray:
+def _create_brownian_noise(size: tuple, noise_var: int) -> np.ndarray:
     """Create a brownian noise to add texture to the synthetic image.
         reference: https://stackoverflow.com/questions/70085015/how-to-generate-2d-colored-noise"""
+    # Color factor 
+    color_factor = np.random.choice(np.linspace(1, 1.5, 9))
     # Generate white noise image
-    whitenoise = np.random.normal(size=size) * noise_var
+    whitenoise = np.random.normal(size=size) * (noise_var + 3000 * (color_factor - 1))
     # Compute 2D Fourier transform and shift it to the center
     ft_arr = np.fft.fftshift(np.fft.fft2(whitenoise))
-    # Pass the white noise into brownian noise
+    # Pass the white noise into colored noise
     _x, _y = np.mgrid[0:ft_arr.shape[0], 0:ft_arr.shape[1]]
     f = np.hypot(_x - ft_arr.shape[0] / 2, _y - ft_arr.shape[1] / 2)
     f[f == 0] = 1  # just to delete the 0 in the center
-    # Select the noise color
-    if noise_type == 'brown':
-        f = f ** 2
-    elif noise_type == 'pink':
-        pass
-    else:
-        raise ValueError(f'Your noise type "{noise_type}" is not supported. Please choose between "brown" and "pink".')
-    brownian_ft_arr = np.nan_to_num(ft_arr / f, nan=0, posinf=0, neginf=0)
+    f = f ** color_factor
+    color_ft_arr = np.nan_to_num(ft_arr / f, nan=0, posinf=0, neginf=0)
     # Come back to image level
-    brownian_noise = np.fft.ifft2(np.fft.ifftshift(brownian_ft_arr)).real
+    color_noise = np.fft.ifft2(np.fft.ifftshift(color_ft_arr)).real
 
-    return brownian_noise
+    return color_noise
 
 
 def _gradient_layer(image: Image):
