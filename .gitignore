@@ -5,7 +5,8 @@
 *__pycache__/
 *.ipynb_checkpoints/
 local_files/data_stats_analysis/train
-local_files/data/*
+local_files/data/train/*
+local_files/data/test/*
 runai
 run_ct.py
 run_dl.py
