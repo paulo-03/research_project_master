@@ -3,6 +3,7 @@
 import os
 import pydicom
 import torch
+import numpy as np
 
 from image_utils.utils import *
 from tqdm.notebook import tqdm_notebook
@@ -72,3 +73,15 @@ def store_dl_disk(path, dl_imgs):
                                  desc="Writing generated Dead Leaves into disk"):
         img = dl.pil
         img.save(path + f"image_{idx:05}.png")
+
+
+def display_test_results(perf: dict):
+    print("Results (init):\n", 
+          f"MSE:  {np.mean(perf['mse']['init']):.2f} ({np.std(perf['mse']['init']):.2f})\n", 
+          f"PSNR: {np.mean(perf['psnr']['init']):.2f} ({np.std(perf['psnr']['init']):.2f})\n", 
+          f"SSIM: {np.mean(perf['ssim']['init']):.2f} ({np.std(perf['ssim']['init']):.2f})\n")
+
+    print("Results (final):\n", 
+          f"MSE:  {np.mean(perf['mse']['final']):.2f} ({np.std(perf['mse']['final']):.2f})\n", 
+          f"PSNR: {np.mean(perf['psnr']['final']):.2f} ({np.std(perf['psnr']['final']):.2f})\n", 
+          f"SSIM: {np.mean(perf['ssim']['final']):.2f} ({np.std(perf['ssim']['final']):.2f})")
