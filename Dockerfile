@@ -29,7 +29,7 @@ RUN pip3 --no-cache-dir install \
     tensorboard==2.15.2 \
     pydicom==2.4.4 \
     pillow imageio h5py \
-	pandas \
+	pandas torchmetrics \
 	opencv-contrib-python-headless \
     jupyter \
     jupyterlab \
