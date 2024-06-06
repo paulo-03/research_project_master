@@ -1,18 +1,21 @@
-# Data preparation & loading
+# CT Dataset
 
-Dataset can be downloaded [here](https://aapm.app.box.com/s/eaw4jddb53keg1bptavvvd1sf4x3pe9h/folder/144594475090).
+CT dataset can be downloaded [here](https://aapm.app.box.com/s/eaw4jddb53keg1bptavvvd1sf4x3pe9h/folder/144594475090).
 
-Contact: [Raphaël Achddou](mailto:raphael.achddou@epfl.ch), [Paulo Ribeiro](mailto:paulo.ribeirodecarvalho@epfl.ch)
+Contact: [Paulo Ribeiro](mailto:paulo.ribeirodecarvalho@epfl.ch)
+
+---
 
 ## Dataset
 
-Briefly explain the data used in this research project
+The dataset used in this project is from *Low Dose CT Grand Challenge*. The dataset comprises over fifteen thousand CT 
+slices pair (low-full dose) from 10 patients, scanned under four different contexts: 1mm B30, 1mm D45, 3mm B30, and 
+3mm D45.
 
 ## Data Re-structuration 
 
-Explain the first issue and what have been made to resolve this tinny issue.
-Place your data folders (train and test) here.
+In the current folder, you find the `data_restructuration.py` file. This file will help you to easily restructure the 
+data downloaded from *Low Dose CT Grand Challenge* to have the same structure as used during this project.
 
-## Data Loading
-
-Explain how we load the data
+***Note:*** the results of the statistical analysis of the CT images can be loaded with the `ct_stat_results.npz` file.
+This way, it is not mandatory to re-run the notebook to retrieve the distributions and other information.
